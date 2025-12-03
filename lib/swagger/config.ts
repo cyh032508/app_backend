@@ -43,8 +43,20 @@ const options: any = {
         name: 'Grading',
         description: '評分相關 API',
       },
+      {
+        name: 'Authentication',
+        description: '用戶認證相關 API（註冊、登入）',
+      },
     ],
     components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'JWT 認證令牌，格式：Bearer <token>',
+        },
+      },
       schemas: {
         SuccessResponse: {
           type: 'object',

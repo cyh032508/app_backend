@@ -1,0 +1,64 @@
+// Prisma Schema for Supabase PostgreSQL Database
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")      // App 運行時走連線池 (Port 6543)
+  directUrl = env("DIRECT_URL")        // Push/Migrate 時直連 (Port 5432)
+}
+
+model Essays {
+  id          String    @id @default(uuid())
+  user_id    String
+  title       String?
+  content     String?
+  ocr_raw_text String?
+  image_path  String?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  deleted_at  DateTime?
+
+  @@map("ESSAYS")
+}
+
+model Scores {
+  id              String    @id @default(uuid())
+  essay_id        String
+  user_id         String
+  rubric_id       String
+  total_score     String
+  feedback_json   Json?
+  grammar_analysis Json?
+  vocabulary_usage Json?
+  structure_issues Json?
+  created_at      DateTime  @default(now())
+
+  @@map("SCORES")
+}
+
+model Rubrics {
+  id            String    @id @default(uuid())
+  name          String
+  title         String
+  description   String?
+  criteria_json Json
+  created_at    DateTime  @default(now())
+  updated_at    DateTime? @updatedAt
+
+  @@map("RUBRICS")
+}
+
+model User {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  hashed_password String
+  username       String?
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  @@map("USER")
+}
+
