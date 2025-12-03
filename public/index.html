@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <title>Google OCR Demo</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; }
+    #result { white-space: pre-wrap; margin-top: 1rem; border: 1px solid #ccc; padding: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>上傳圖片 → Google OCR</h1>
+
+  <!-- 讓使用者挑檔 -->
+  <input type="file" id="fileInput" accept="image/*" />
+  <button id="uploadBtn">上傳並辨識</button>
+
+  <h2>OCR 結果</h2>
+  <div id="result">（這裡會顯示文字）</div>
+
+  <script>
+    const fileInput = document.getElementById("fileInput");
+    const uploadBtn = document.getElementById("uploadBtn");
+    const resultDiv = document.getElementById("result");
+
+    uploadBtn.addEventListener("click", async () => {
+      if (!fileInput.files.length) {
+        alert("請先選一張圖片！");
+        return;
+      }
+
+      // 1. 把圖片包進 FormData
+      const formData = new FormData();
+      formData.append("photo", fileInput.files[0]);
+
+      try {
+        // 2. 傳到我們的 Express 伺服器 /upload
+        const resp = await fetch("/upload", {
+          method: "POST",
+          body: formData,
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+
+        // 3. 解析 JSON 結果（server.js 會回 { google: "全文…" }）
+        const data = await resp.json();
+        resultDiv.textContent = data.google || "(沒有偵測到文字)";
+      } catch (err) {
+        console.error(err);
+        alert("辨識失敗：" + err.message);
+      }
+    });
+  </script>
+</body>
+</html>
