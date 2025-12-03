@@ -5,11 +5,12 @@
 
 import { VertexAI, HarmCategory, HarmBlockThreshold } from '@google-cloud/vertexai';
 import { OCR_PROMPT, CROSS_COMPARE_PROMPT } from '@/lib/prompts/ocr-prompts';
+import { VERTEX_AI_CONFIG } from '@/lib/config/vertex-ai';
 
 // 初始化 Vertex AI
-const PROJECT_ID = process.env.GCP_PROJECT_ID || 'tw-rd-pd-tim-chen';
-const LOCATION = process.env.GCP_LOCATION || 'us-central1';
-const MODEL_NAME = process.env.GEMINI_MODEL || 'gemini-2.5-pro';
+const PROJECT_ID = VERTEX_AI_CONFIG.projectId;
+const LOCATION = VERTEX_AI_CONFIG.location;
+const MODEL_NAME = VERTEX_AI_CONFIG.model;
 
 let vertexAI: VertexAI | null = null;
 let model: any = null;

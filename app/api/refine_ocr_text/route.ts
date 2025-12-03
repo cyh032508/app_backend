@@ -5,6 +5,59 @@ import { errorResponse, successResponse } from '@/lib/utils/response-helper';
 const API_KEY = process.env.GEMINI_API_KEY;
 const API_URL = process.env.GEMINI_API_URL;
 
+/**
+ * @swagger
+ * /api/refine_ocr_text:
+ *   post:
+ *     summary: 優化 OCR 識別結果
+ *     description: 使用 Gemini AI 改善從圖片辨識出來的文字，使其更通順、符合語意但不改變原本內容意思
+ *     tags: [Text Processing]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - text
+ *             properties:
+ *               text:
+ *                 type: string
+ *                 description: 需要優化的 OCR 識別文字
+ *                 example: "這是一段從圖片識別出來的文字，可能有一些錯誤..."
+ *     responses:
+ *       200:
+ *         description: 優化成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "操作成功"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     refined_text:
+ *                       type: string
+ *                       example: "優化後的文字內容..."
+ *       400:
+ *         description: 請求錯誤
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: 服務器錯誤
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 export async function POST(req: NextRequest) {
   try {
     const data = await req.json();

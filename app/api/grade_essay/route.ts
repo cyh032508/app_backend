@@ -5,6 +5,82 @@ import { errorResponse, successResponse } from '@/lib/utils/response-helper';
 const API_KEY = process.env.GEMINI_API_KEY;
 const API_URL = process.env.GEMINI_API_URL;
 
+/**
+ * @swagger
+ * /api/grade_essay:
+ *   post:
+ *     summary: 根據評分標準對作文進行評分
+ *     description: 使用 Gemini AI 根據提供的評分標準對作文進行批改和評分
+ *     tags: [Grading]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - topic
+ *               - content
+ *               - rubric
+ *             properties:
+ *               topic:
+ *                 type: string
+ *                 description: 作文題目
+ *                 example: "我的夢想"
+ *               content:
+ *                 type: string
+ *                 description: 作文內容
+ *                 example: "我的夢想是成為一名醫生..."
+ *               rubric:
+ *                 type: string
+ *                 description: 評分標準
+ *                 example: "評分標準：內容 40%，結構 30%，語言 30%"
+ *     responses:
+ *       200:
+ *         description: 評分成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "操作成功"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     score:
+ *                       type: string
+ *                       example: "85/100"
+ *                     feedback:
+ *                       type: string
+ *                       example: "整體評語..."
+ *                     strengths:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: ["優點1", "優點2", "優點3"]
+ *                     improvements:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: ["建議1", "建議2", "建議3"]
+ *       400:
+ *         description: 請求錯誤
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: 服務器錯誤
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 export async function POST(req: NextRequest) {
   try {
     const data = await req.json();

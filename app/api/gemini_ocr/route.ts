@@ -3,6 +3,46 @@ import { validateImageUpload } from '@/lib/middleware/request-validator';
 import { errorResponse, successResponse } from '@/lib/utils/response-helper';
 import { processImage } from '@/lib/gemini-ocr/pipeline';
 
+/**
+ * @swagger
+ * /api/gemini_ocr:
+ *   post:
+ *     summary: 使用 Gemini AI 進行 OCR 識別（推薦）
+ *     description: 對上傳的圖片執行 OCR 辨識，會對原始圖片和二值化圖片分別進行識別，然後交叉比對優化結果
+ *     tags: [OCR]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - image
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: 需上傳的圖片檔案（作文稿紙照片）
+ *     responses:
+ *       200:
+ *         description: OCR 辨識成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/OCRResult'
+ *       400:
+ *         description: 請求錯誤（缺少圖片或格式錯誤）
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: 服務器錯誤
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 export async function POST(req: NextRequest) {
   try {
     // 验证图片上传
