@@ -4,7 +4,8 @@
  */
 
 import { NextRequest } from 'next/server';
-import { verifyToken, TokenPayload } from '@/lib/auth/utils';
+import { verifyToken } from '@/lib/auth/utils';
+import { TokenPayload } from '@/lib/auth/types';
 import { errorResponse, ErrorCodes } from '@/lib/utils/response-helper';
 
 export interface AuthenticatedRequest extends NextRequest {

@@ -5,9 +5,65 @@
 import crypto from 'crypto';
 import { TokenPayload } from './types';
 
-// JWT Secret（应该从环境变量读取）
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d'; // 7天
+/**
+ * 获取 JWT Secret（从环境变量读取，必需）
+ */
+function getJWTSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error(
+      '❌ 缺少必需的环境变量: JWT_SECRET\n' +
+      '   请在 .env 文件中设置 JWT_SECRET\n' +
+      '   建议使用至少 32 个字符的随机字符串'
+    );
+  }
+  if (secret.length < 32) {
+    console.warn(
+      '⚠️  警告: JWT_SECRET 长度少于 32 个字符，建议使用更长的密钥以确保安全'
+    );
+  }
+  return secret;
+}
+
+/**
+ * 解析 JWT 过期时间（从环境变量读取，默认 7 天）
+ * 支持格式: "7d", "24h", "3600s" 或纯数字（秒）
+ */
+function getJWTExpiresIn(): number {
+  const expiresIn = process.env.JWT_EXPIRES_IN || '7d';
+  
+  // 如果是纯数字，直接返回（单位：秒）
+  if (/^\d+$/.test(expiresIn)) {
+    return parseInt(expiresIn, 10);
+  }
+  
+  // 解析带单位的字符串
+  const match = expiresIn.match(/^(\d+)([dhms])$/);
+  if (!match) {
+    console.warn(`⚠️  无法解析 JWT_EXPIRES_IN: ${expiresIn}，使用默认值 7 天`);
+    return 7 * 24 * 60 * 60; // 默认 7 天
+  }
+  
+  const value = parseInt(match[1], 10);
+  const unit = match[2];
+  
+  switch (unit) {
+    case 'd': // 天
+      return value * 24 * 60 * 60;
+    case 'h': // 小时
+      return value * 60 * 60;
+    case 'm': // 分钟
+      return value * 60;
+    case 's': // 秒
+      return value;
+    default:
+      return 7 * 24 * 60 * 60; // 默认 7 天
+  }
+}
+
+// 初始化时获取配置（如果缺少 JWT_SECRET 会立即抛出错误）
+const JWT_SECRET = getJWTSecret();
+const JWT_EXPIRES_IN_SECONDS = getJWTExpiresIn();
 
 /**
  * 生成密码哈希（使用 SHA-256，实际应用中应使用 bcrypt）
@@ -38,12 +94,11 @@ export function generateToken(payload: TokenPayload): string {
   };
 
   const now = Math.floor(Date.now() / 1000);
-  const expiresIn = 7 * 24 * 60 * 60; // 7天（秒）
 
   const tokenPayload = {
     ...payload,
     iat: now,
-    exp: now + expiresIn,
+    exp: now + JWT_EXPIRES_IN_SECONDS,
   };
 
   const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url');
