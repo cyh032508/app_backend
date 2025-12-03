@@ -35,6 +35,8 @@ export async function GET() {
     message: 'AI作文批改系統 API 運行正常',
     version: '2.0.0',
     endpoints: [
+      'POST /api/auth/register - 用戶註冊',
+      'POST /api/auth/login - 用戶登入',
       'POST /api/upload_segment_ocr - OCR識別 (ResNet模型)',
       'POST /api/upload_segment_ocr_EffecientNet - OCR識別 (EfficientNet模型)',
       'POST /api/refine_ocr_text - 文字優化',
