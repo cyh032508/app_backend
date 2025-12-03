@@ -19,10 +19,10 @@ export interface ErrorResponse {
 }
 
 export function successResponse<T = any>(
-  data: T = null,
+  data: T | null = null,
   message: string = '操作成功',
   statusCode: number = 200
-): NextResponse<SuccessResponse<T>> {
+): NextResponse<SuccessResponse<T | null>> {
   return NextResponse.json(
     {
       success: true,
