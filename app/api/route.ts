@@ -37,10 +37,8 @@ export async function GET() {
     endpoints: [
       'POST /api/auth/register - 用戶註冊',
       'POST /api/auth/login - 用戶登入',
-      'POST /api/upload_segment_ocr - OCR識別 (ResNet模型)',
-      'POST /api/upload_segment_ocr_EffecientNet - OCR識別 (EfficientNet模型)',
       'POST /api/refine_ocr_text - 文字優化',
-      'POST /api/gemini_ocr - OCR識別 (Gemini AI - 推薦)',
+      'POST /api/gemini_ocr - OCR識別 (Gemini AI)',
       'POST /api/grade_essay - 作文評分',
       'POST /api/generate_rubric - 生成評分標準',
     ],
