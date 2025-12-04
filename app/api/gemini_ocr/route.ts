@@ -72,56 +72,104 @@ export async function POST(req: NextRequest) {
 
     // 決定最終使用的文字結果（優先順序：優化結果 > 原始 OCR > 二值化 OCR）
     let finalText = '';
-    if (result.cross_compare.success && result.cross_compare.text) {
-      finalText = result.cross_compare.text;
-    } else if (result.original_ocr.success && result.original_ocr.text) {
-      finalText = result.original_ocr.text;
-    } else if (result.binary_ocr.success && result.binary_ocr.text) {
-      finalText = result.binary_ocr.text;
+    try {
+      if (result.cross_compare.success && result.cross_compare.text) {
+        finalText = result.cross_compare.text;
+        console.log('✅ 使用交叉比對結果作為最終文字');
+      } else if (result.original_ocr.success && result.original_ocr.text) {
+        finalText = result.original_ocr.text;
+        console.log('✅ 使用原始 OCR 結果作為最終文字');
+      } else if (result.binary_ocr.success && result.binary_ocr.text) {
+        finalText = result.binary_ocr.text;
+        console.log('✅ 使用二值化 OCR 結果作為最終文字');
+      }
+      console.log(`📝 最終文字長度: ${finalText.length} 字元`);
+    } catch (textError: any) {
+      console.error('❌ 提取最終文字失敗:', textError.message);
+      finalText = '';
     }
 
     // 構建回應資料（兼容舊格式）
-    const responseData = {
-      // 兼容舊的 upload_segment_ocr 格式
-      message: 'OCR 辨識完成',
-      result_text: finalText, // 舊格式欄位
-      text: finalText, // 前端可能使用的欄位
-      ocr_text: finalText, // 前端可能使用的欄位
+    try {
+      const responseData = {
+        // 兼容舊的 upload_segment_ocr 格式
+        message: 'OCR 辨識完成',
+        result_text: finalText, // 舊格式欄位
+        text: finalText, // 前端可能使用的欄位
+        ocr_text: finalText, // 前端可能使用的欄位
 
-      // 保留完整的詳細資料供未來使用
-      success: true,
-      data: {
-        original_ocr: {
-          success: result.original_ocr.success,
-          text: result.original_ocr.text || '',
-          text_length: result.original_ocr.text_length || 0,
-          ocr_time: result.original_ocr.ocr_time || 0,
-          finish_reason: result.original_ocr.finish_reason,
-          error: result.original_ocr.error,
+        // 保留完整的詳細資料供未來使用
+        success: true,
+        data: {
+          original_ocr: {
+            success: result.original_ocr.success,
+            text: result.original_ocr.text || '',
+            text_length: result.original_ocr.text_length || 0,
+            ocr_time: result.original_ocr.ocr_time || 0,
+            finish_reason: result.original_ocr.finish_reason,
+            error: result.original_ocr.error,
+          },
+          binary_ocr: {
+            success: result.binary_ocr.success,
+            text: result.binary_ocr.text || '',
+            text_length: result.binary_ocr.text_length || 0,
+            ocr_time: result.binary_ocr.ocr_time || 0,
+            finish_reason: result.binary_ocr.finish_reason,
+            error: result.binary_ocr.error,
+          },
+          optimized: {
+            success: result.cross_compare.success,
+            text: result.cross_compare.text || '',
+            text_length: result.cross_compare.text_length || 0,
+            compare_time: result.cross_compare.compare_time || 0,
+            finish_reason: result.cross_compare.finish_reason,
+            error: result.cross_compare.error,
+          },
+          total_time: result.total_time,
+          load_time: result.load_time,
+          binarize_time: result.binarize_time,
         },
-        binary_ocr: {
-          success: result.binary_ocr.success,
-          text: result.binary_ocr.text || '',
-          text_length: result.binary_ocr.text_length || 0,
-          ocr_time: result.binary_ocr.ocr_time || 0,
-          finish_reason: result.binary_ocr.finish_reason,
-          error: result.binary_ocr.error,
-        },
-        optimized: {
-          success: result.cross_compare.success,
-          text: result.cross_compare.text || '',
-          text_length: result.cross_compare.text_length || 0,
-          compare_time: result.cross_compare.compare_time || 0,
-          finish_reason: result.cross_compare.finish_reason,
-          error: result.cross_compare.error,
-        },
-        total_time: result.total_time,
-        load_time: result.load_time,
-        binarize_time: result.binarize_time,
-      },
-    };
+      };
 
-    return successResponse(responseData, 'OCR 辨識完成');
+      // 檢查回應大小（Vercel 限制約 4.5MB）
+      const responseSize = JSON.stringify(responseData).length;
+      console.log('✅ 構建回應資料成功');
+      console.log(`   - Final Text 長度: ${finalText.length}`);
+      console.log(`   - Response Data 大小: ${(responseSize / 1024 / 1024).toFixed(2)} MB (${responseSize} bytes)`);
+      
+      if (responseSize > 4 * 1024 * 1024) {
+        console.warn('⚠️ 回應資料過大，可能超過 Vercel 限制 (4.5MB)');
+        // 如果回應過大，只返回必要的資料
+        const compactResponseData = {
+          message: 'OCR 辨識完成',
+          result_text: finalText,
+          text: finalText,
+          ocr_text: finalText,
+          success: true,
+          data: {
+            optimized: {
+              success: result.cross_compare.success,
+              text: result.cross_compare.text || '',
+              text_length: result.cross_compare.text_length || 0,
+            },
+            total_time: result.total_time,
+          },
+        };
+        console.log(`   - 使用精簡回應，大小: ${(JSON.stringify(compactResponseData).length / 1024 / 1024).toFixed(2)} MB`);
+        return successResponse(compactResponseData, 'OCR 辨識完成');
+      }
+
+      return successResponse(responseData, 'OCR 辨識完成');
+    } catch (buildError: any) {
+      console.error('❌ 構建回應資料失敗:', buildError.message);
+      console.error('   錯誤詳情:', buildError);
+      return errorResponse(
+        `構建回應資料失敗: ${buildError.message}`,
+        undefined,
+        { finalTextLength: finalText.length },
+        500
+      );
+    }
   } catch (error: any) {
     console.error('Error in gemini_ocr:', error);
     return errorResponse(
