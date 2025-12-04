@@ -42,8 +42,13 @@ if (typeof process !== 'undefined' && process.emitWarning && !(process as any)._
       return;
     }
     
-    // 其他警告正常顯示
-    return originalEmitWarning.call(process, warning, typeOrOptions as any, codeOrCtor as any, ctor);
+    // 其他警告正常顯示，使用 apply 來處理所有參數組合
+    const args: any[] = [warning];
+    if (typeOrOptions !== undefined) args.push(typeOrOptions);
+    if (codeOrCtor !== undefined) args.push(codeOrCtor);
+    if (ctor !== undefined) args.push(ctor);
+    
+    return (originalEmitWarning as any).apply(process, args);
   };
   
   // 標記已經處理過，避免重複設置
