@@ -23,15 +23,33 @@ function initializeVertexAI() {
       location: LOCATION,
     };
 
+    // 調試：檢查環境變數
+    console.log('🔍 [Vertex AI 認證] 檢查環境變數...');
+    console.log('  - GOOGLE_APPLICATION_CREDENTIALS_JSON:', process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ? `已設置 (長度: ${process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON.length})` : '❌ 未設置');
+    console.log('  - GOOGLE_APPLICATION_CREDENTIALS:', process.env.GOOGLE_APPLICATION_CREDENTIALS ? '已設置' : '未設置');
+    console.log('  - GCP_PROJECT_ID:', PROJECT_ID);
+    console.log('  - GCP_LOCATION:', LOCATION);
+
     // 如果提供了服務帳號 JSON（作為環境變數），使用它進行認證
     if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
       try {
         const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+        
+        // 驗證必要的欄位
+        if (!credentials.type || !credentials.project_id || !credentials.private_key || !credentials.client_email) {
+          console.error('❌ 服務帳號憑證缺少必要欄位');
+          console.error('  需要: type, project_id, private_key, client_email');
+          throw new Error('服務帳號憑證缺少必要欄位');
+        }
+        
         vertexAIConfig.credentials = credentials;
         console.log('✅ 使用服務帳號憑證進行 Vertex AI 認證');
-      } catch (error) {
-        console.error('❌ 無法解析 GOOGLE_APPLICATION_CREDENTIALS_JSON:', error);
-        throw new Error('服務帳號憑證格式錯誤');
+        console.log(`   - Project ID: ${credentials.project_id}`);
+        console.log(`   - Client Email: ${credentials.client_email}`);
+      } catch (error: any) {
+        console.error('❌ 無法解析 GOOGLE_APPLICATION_CREDENTIALS_JSON:', error.message);
+        console.error('   錯誤詳情:', error);
+        throw new Error(`服務帳號憑證格式錯誤: ${error.message}`);
       }
     } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
       // 如果提供了憑證文件路徑（本地開發環境）
@@ -39,6 +57,7 @@ function initializeVertexAI() {
     } else {
       // 嘗試使用默認認證（本地開發環境的 gcloud auth）
       console.warn('⚠️ 未找到認證憑證，嘗試使用默認認證（僅適用於本地開發環境）');
+      console.warn('⚠️ 在 Vercel 環境中，必須設置 GOOGLE_APPLICATION_CREDENTIALS_JSON 環境變數');
     }
 
     vertexAI = new VertexAI(vertexAIConfig);
