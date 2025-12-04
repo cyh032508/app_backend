@@ -26,11 +26,13 @@ function initializeVertexAI() {
     // 調試：檢查環境變數
     console.log('🔍 [Vertex AI 認證] 檢查環境變數...');
     console.log('  - GOOGLE_APPLICATION_CREDENTIALS_JSON:', process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ? `已設置 (長度: ${process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON.length})` : '❌ 未設置');
+    console.log('  - CLIENT_EMAIL:', process.env.CLIENT_EMAIL ? '已設置' : '❌ 未設置');
+    console.log('  - PRIVATE_KEY:', process.env.PRIVATE_KEY ? '已設置' : '❌ 未設置');
     console.log('  - GOOGLE_APPLICATION_CREDENTIALS:', process.env.GOOGLE_APPLICATION_CREDENTIALS ? '已設置' : '未設置');
     console.log('  - GCP_PROJECT_ID:', PROJECT_ID);
     console.log('  - GCP_LOCATION:', LOCATION);
 
-    // 如果提供了服務帳號 JSON（作為環境變數），使用它進行認證
+    // 方式 1: 完整的 JSON 字串（推薦，但 Vercel 環境變數有大小限制）
     if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
       try {
         const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
@@ -42,22 +44,59 @@ function initializeVertexAI() {
           throw new Error('服務帳號憑證缺少必要欄位');
         }
         
-        vertexAIConfig.credentials = credentials;
-        console.log('✅ 使用服務帳號憑證進行 Vertex AI 認證');
+        // 確保正確處理 private_key 的換行符號
+        const privateKey = credentials.private_key.replace(/\\n/g, '\n');
+        
+        // 使用 googleAuthOptions 來設置認證（正確的方式）
+        vertexAIConfig.googleAuthOptions = {
+          credentials: {
+            client_email: credentials.client_email,
+            private_key: privateKey,
+          },
+        };
+        
+        console.log('✅ 使用 GOOGLE_APPLICATION_CREDENTIALS_JSON 進行 Vertex AI 認證');
         console.log(`   - Project ID: ${credentials.project_id}`);
         console.log(`   - Client Email: ${credentials.client_email}`);
+        console.log(`   - Private Key 長度: ${privateKey.length}`);
       } catch (error: any) {
         console.error('❌ 無法解析 GOOGLE_APPLICATION_CREDENTIALS_JSON:', error.message);
         console.error('   錯誤詳情:', error);
         throw new Error(`服務帳號憑證格式錯誤: ${error.message}`);
       }
-    } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-      // 如果提供了憑證文件路徑（本地開發環境）
+    }
+    // 方式 2: 拆分環境變數（適合 Vercel，避免環境變數大小限制）
+    else if (process.env.CLIENT_EMAIL && process.env.PRIVATE_KEY) {
+      try {
+        // 確保正確處理 private_key 的換行符號
+        // 有些 .env parser 會把 \n 當作純文字，需要轉換回來
+        const privateKey = process.env.PRIVATE_KEY.replace(/\\n/g, '\n');
+        
+        vertexAIConfig.googleAuthOptions = {
+          credentials: {
+            client_email: process.env.CLIENT_EMAIL,
+            private_key: privateKey,
+          },
+        };
+        
+        console.log('✅ 使用拆分環境變數 (CLIENT_EMAIL + PRIVATE_KEY) 進行 Vertex AI 認證');
+        console.log(`   - Client Email: ${process.env.CLIENT_EMAIL}`);
+        console.log(`   - Private Key 長度: ${privateKey.length}`);
+      } catch (error: any) {
+        console.error('❌ 無法設置拆分環境變數認證:', error.message);
+        throw new Error(`拆分環境變數認證錯誤: ${error.message}`);
+      }
+    }
+    // 方式 3: 使用憑證文件路徑（本地開發環境）
+    else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
       console.log('✅ 使用 GOOGLE_APPLICATION_CREDENTIALS 文件進行認證');
-    } else {
-      // 嘗試使用默認認證（本地開發環境的 gcloud auth）
+    }
+    // 方式 4: 嘗試使用默認認證（本地開發環境的 gcloud auth）
+    else {
       console.warn('⚠️ 未找到認證憑證，嘗試使用默認認證（僅適用於本地開發環境）');
-      console.warn('⚠️ 在 Vercel 環境中，必須設置 GOOGLE_APPLICATION_CREDENTIALS_JSON 環境變數');
+      console.warn('⚠️ 在 Vercel 環境中，必須設置以下之一：');
+      console.warn('   1. GOOGLE_APPLICATION_CREDENTIALS_JSON (完整 JSON)');
+      console.warn('   2. CLIENT_EMAIL + PRIVATE_KEY (拆分環境變數)');
     }
 
     vertexAI = new VertexAI(vertexAIConfig);
