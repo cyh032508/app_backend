@@ -3,6 +3,9 @@
  * 提供 OCR 辨識的核心功能
  */
 
+// 抑制 deprecation warnings（在導入 VertexAI 之前）
+import '@/lib/utils/suppress-warnings';
+
 import { VertexAI, HarmCategory, HarmBlockThreshold } from '@google-cloud/vertexai';
 import { OCR_PROMPT, CROSS_COMPARE_PROMPT } from '@/lib/prompts/ocr-prompts';
 import { VERTEX_AI_CONFIG } from '@/lib/config/vertex-ai';
