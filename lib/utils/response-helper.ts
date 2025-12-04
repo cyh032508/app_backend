@@ -23,14 +23,48 @@ export function successResponse<T = any>(
   message: string = '操作成功',
   statusCode: number = 200
 ): NextResponse<SuccessResponse<T | null>> {
-  return NextResponse.json(
-    {
+  try {
+    const responseBody = {
       success: true,
       message,
       data,
-    },
-    { status: statusCode }
-  );
+    };
+    
+    // 測試序列化
+    try {
+      JSON.stringify(responseBody);
+    } catch (serializeError: any) {
+      console.error('❌ [successResponse] 序列化失敗:', serializeError.message);
+      throw new Error(`無法序列化回應資料: ${serializeError.message}`);
+    }
+    
+    const response = NextResponse.json(
+      responseBody,
+      { 
+        status: statusCode,
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+        },
+      }
+    );
+    
+    return response;
+  } catch (error: any) {
+    console.error('❌ [successResponse] 創建回應失敗:', error.message);
+    // 如果創建回應失敗，返回錯誤回應
+    return NextResponse.json(
+      {
+        success: false,
+        error: `創建回應失敗: ${error.message}`,
+      },
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+        },
+      }
+    );
+  }
 }
 
 export function errorResponse(

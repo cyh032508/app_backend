@@ -185,18 +185,48 @@ export async function POST(req: NextRequest) {
         };
         const compactSize = JSON.stringify(compactResponseData).length;
         console.log(`   - 使用精簡回應，大小: ${(compactSize / 1024 / 1024).toFixed(2)} MB`);
-        return successResponse(compactResponseData, 'OCR 辨識完成');
+        return NextResponse.json(
+          compactResponseData,
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json; charset=utf-8',
+            },
+          }
+        );
       }
 
       // 嘗試返回回應
       try {
         const responseStartTime = Date.now();
-        const response = successResponse(responseData, 'OCR 辨識完成');
+        console.log('📤 [OCR API] 準備返回回應...');
+        
+        // responseData 已經包含完整的結構，直接返回
+        // 再次測試序列化
+        try {
+          JSON.stringify(responseData);
+        } catch (finalSerializeError: any) {
+          console.error('❌ 最終序列化測試失敗:', finalSerializeError.message);
+          throw finalSerializeError;
+        }
+        
+        const response = NextResponse.json(
+          responseData,
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json; charset=utf-8',
+            },
+          }
+        );
+        
         const responseTime = (Date.now() - responseStartTime) / 1000;
         console.log(`✅ 成功創建 NextResponse (耗時: ${responseTime.toFixed(2)} 秒)`);
+        console.log(`   - Status: ${response.status}`);
         
         const totalTime = (Date.now() - requestStartTime) / 1000;
         console.log(`🎉 [OCR API] 請求處理完成，總耗時: ${totalTime.toFixed(2)} 秒`);
+        console.log('📤 [OCR API] 返回回應...');
         
         return response;
       } catch (responseError: any) {
