@@ -45,16 +45,9 @@ function initializeVertexAI() {
         }
         
         // 確保正確處理 private_key 的換行符號
-        // 如果 private_key 已經是正確格式（包含實際換行），不需要替換
-        // 如果 private_key 包含 \n 字串，需要轉換為實際換行
-        let privateKey = credentials.private_key;
-        if (privateKey.includes('\\n')) {
-          privateKey = privateKey.replace(/\\n/g, '\n');
-          console.log('   - 已將 \\n 轉換為實際換行符');
-        }
+        const privateKey = credentials.private_key.replace(/\\n/g, '\n');
         
-        // 使用 googleAuthOptions 來設置認證
-        // 這是 @google-cloud/vertexai 推薦的方式
+        // 使用 googleAuthOptions 來設置認證（正確的方式）
         vertexAIConfig.googleAuthOptions = {
           credentials: {
             client_email: credentials.client_email,
@@ -66,8 +59,6 @@ function initializeVertexAI() {
         console.log(`   - Project ID: ${credentials.project_id}`);
         console.log(`   - Client Email: ${credentials.client_email}`);
         console.log(`   - Private Key 長度: ${privateKey.length}`);
-        console.log(`   - Private Key 開頭: ${privateKey.substring(0, 30)}...`);
-        console.log(`   - Private Key 結尾: ...${privateKey.substring(privateKey.length - 30)}`);
       } catch (error: any) {
         console.error('❌ 無法解析 GOOGLE_APPLICATION_CREDENTIALS_JSON:', error.message);
         console.error('   錯誤詳情:', error);
