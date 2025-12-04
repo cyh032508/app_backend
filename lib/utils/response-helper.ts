@@ -22,10 +22,10 @@ export function successResponse<T = any>(
   data: T | null = null,
   message: string = '操作成功',
   statusCode: number = 200
-): NextResponse<SuccessResponse<T | null>> {
+): NextResponse {
   try {
-    const responseBody = {
-      success: true,
+    const responseBody: SuccessResponse<T | null> = {
+      success: true as const,
       message,
       data,
     };
@@ -52,17 +52,11 @@ export function successResponse<T = any>(
   } catch (error: any) {
     console.error('❌ [successResponse] 創建回應失敗:', error.message);
     // 如果創建回應失敗，返回錯誤回應
-    return NextResponse.json(
-      {
-        success: false,
-        error: `創建回應失敗: ${error.message}`,
-      },
-      { 
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-        },
-      }
+    return errorResponse(
+      `創建回應失敗: ${error.message}`,
+      'RESPONSE_ERROR',
+      undefined,
+      500
     );
   }
 }
@@ -72,7 +66,7 @@ export function errorResponse(
   errorCode?: string,
   details?: any,
   statusCode: number = 400
-): NextResponse<ErrorResponse> {
+): NextResponse {
   return NextResponse.json(
     {
       success: false,
@@ -80,7 +74,12 @@ export function errorResponse(
       error_code: errorCode,
       details,
     },
-    { status: statusCode }
+    { 
+      status: statusCode,
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+      },
+    }
   );
 }
 
