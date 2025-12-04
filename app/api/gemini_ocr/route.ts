@@ -43,9 +43,11 @@ import { processImage } from '@/lib/gemini-ocr/pipeline';
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-// Vercel 函數超時配置（Hobby 計劃是 10 秒，Pro 計劃是 60 秒）
-// 如果處理時間過長，需要考慮優化或使用異步處理
-export const maxDuration = 300; // 5 分鐘（Pro 計劃）
+// Vercel 函數超時配置
+// Hobby 計劃：10 秒（無法配置）
+// Pro 計劃：60 秒（可配置到 300 秒）
+// Enterprise 計劃：可配置到 900 秒
+export const maxDuration = 300; // 5 分鐘（需要 Pro 計劃或更高）
 
 export async function POST(req: NextRequest) {
   const requestStartTime = Date.now();
