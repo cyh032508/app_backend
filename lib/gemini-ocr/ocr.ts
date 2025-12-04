@@ -18,8 +18,9 @@ let model: any = null;
 function initializeVertexAI() {
   if (!vertexAI) {
     // 在 Vercel/serverless 環境中，使用服務帳號憑證
+    // 構建 VertexAI 配置（使用環境變數或配置）
     const vertexAIConfig: any = {
-      project: PROJECT_ID,
+      project: process.env.PROJECT_ID || PROJECT_ID,
       location: LOCATION,
     };
 
@@ -44,19 +45,16 @@ function initializeVertexAI() {
           throw new Error('服務帳號憑證缺少必要欄位');
         }
         
-        // 確保正確處理 private_key 的換行符號
-        let privateKey = credentials.private_key;
-        // 如果 private_key 包含 \n 字串，需要轉換為實際換行
-        if (privateKey.includes('\\n')) {
-          privateKey = privateKey.replace(/\\n/g, '\n');
-        }
+        // 這是修復 500 錯誤的關鍵：確保正確處理 private_key 的換行符號
+        const privateKey = credentials.private_key
+          ? credentials.private_key.replace(/\\n/g, '\n')
+          : undefined;
         
-        // 使用 googleAuthOptions 來設置認證
-        // 根據 @google-cloud/vertexai 文檔和範例
+        // 使用 googleAuthOptions 來設置認證（這是正確的方式）
         vertexAIConfig.googleAuthOptions = {
           credentials: {
             client_email: credentials.client_email,
-            private_key: privateKey,
+            private_key: privateKey, // 使用處理過的 key
           },
         };
         
@@ -78,14 +76,15 @@ function initializeVertexAI() {
     // 方式 2: 拆分環境變數（適合 Vercel，避免環境變數大小限制）
     else if (process.env.CLIENT_EMAIL && process.env.PRIVATE_KEY) {
       try {
-        // 確保正確處理 private_key 的換行符號
-        // 有些 .env parser 會把 \n 當作純文字，需要轉換回來
-        const privateKey = process.env.PRIVATE_KEY.replace(/\\n/g, '\n');
+        // 這是修復 500 錯誤的關鍵：確保正確處理 private_key 的換行符號
+        const privateKey = process.env.PRIVATE_KEY
+          ? process.env.PRIVATE_KEY.replace(/\\n/g, '\n')
+          : undefined;
         
         vertexAIConfig.googleAuthOptions = {
           credentials: {
             client_email: process.env.CLIENT_EMAIL,
-            private_key: privateKey,
+            private_key: privateKey, // 使用處理過的 key
           },
         };
         
