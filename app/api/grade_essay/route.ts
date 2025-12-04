@@ -114,18 +114,21 @@ ${rubric}
 作文內容：
 ${content}
 
-請提供：
-1. 總分（以 X/100 的格式呈現）
-2. 整體評語
-3. 優點（列出 2-3 個具體優點）
-4. 改進建議（列出 2-3 個具體建議）
+請嚴格遵守以下規則：
+1. 如果作文內容與題目完全無關（文不對題），請直接給予 0-25 分，並在「整體評語」中說明原因。
+2. 請務必以純 JSON 格式回應，不要包含任何 Markdown 標記（如 \`\`\`json ... \`\`\`）或額外的文字說明。
+3. JSON 必須包含以下欄位：
+   - score: 總分（格式為 "X/25"）
+   - feedback: 整體評語
+   - strengths: 優點列表（字串陣列）
+   - improvements: 改進建議列表（字串陣列）
 
-請以 JSON 格式回應，格式如下：
+範例格式：
 {
   "score": "85/100",
-  "feedback": "整體評語...",
-  "strengths": ["優點1", "優點2", "優點3"],
-  "improvements": ["建議1", "建議2", "建議3"]
+  "feedback": "...",
+  "strengths": ["優點1", "優點2"],
+  "improvements": ["建議1", "建議2"]
 }
 `;
 
@@ -175,9 +178,11 @@ ${content}
 
     // 嘗試解析 JSON 格式的回應
     try {
-      // 移除可能的 markdown 代碼塊標記
-      const cleanedText = gradeText.replace(/```json\s*|\s*```/g, '').trim();
-      const gradeData = JSON.parse(cleanedText);
+      // 使用正則表達式提取 JSON 部分，以防 AI 回傳了額外的文字
+      const jsonMatch = gradeText.match(/\{[\s\S]*\}/);
+      const jsonString = jsonMatch ? jsonMatch[0] : gradeText;
+
+      const gradeData = JSON.parse(jsonString);
 
       return successResponse({
         score: gradeData.score || 'N/A',
@@ -186,10 +191,16 @@ ${content}
         improvements: gradeData.improvements || [],
       });
     } catch (parseError) {
-      // 如果無法解析 JSON，返回純文字結果
+      console.error('JSON Parse Error:', parseError);
+      console.log('Raw text:', gradeText);
+
+      // 如果無法解析 JSON，嘗試手動提取分數（備用方案）
+      const scoreMatch = gradeText.match(/score["']?\s*:\s*["']?(\d+\/100)["']?/i);
+      const score = scoreMatch ? scoreMatch[1] : 'N/A';
+
       return successResponse({
-        score: 'N/A',
-        feedback: gradeText,
+        score: score,
+        feedback: gradeText, // 如果解析失敗，將全文作為評語
         strengths: [],
         improvements: [],
       });
