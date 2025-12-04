@@ -43,8 +43,16 @@ import { processImage } from '@/lib/gemini-ocr/pipeline';
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
+// Vercel 函數超時配置（Hobby 計劃是 10 秒，Pro 計劃是 60 秒）
+// 如果處理時間過長，需要考慮優化或使用異步處理
+export const maxDuration = 300; // 5 分鐘（Pro 計劃）
+
 export async function POST(req: NextRequest) {
+  const requestStartTime = Date.now();
+  
   try {
+    console.log('🚀 [OCR API] 開始處理請求');
+    
     // 验证图片上传
     const validation = await validateImageUpload(req);
     if (!validation.isValid) {
@@ -56,9 +64,13 @@ export async function POST(req: NextRequest) {
     // 读取图片为 Buffer
     const imageBuffer = Buffer.from(await imageFile.arrayBuffer());
     const imageName = imageFile.name || 'image.jpg';
+    console.log(`📸 [OCR API] 圖片大小: ${(imageBuffer.length / 1024 / 1024).toFixed(2)} MB`);
 
     // 执行 OCR 处理
+    console.log('⏳ [OCR API] 開始 OCR 處理...');
     const result = await processImage(imageBuffer, imageName);
+    const processingTime = (Date.now() - requestStartTime) / 1000;
+    console.log(`⏱️ [OCR API] OCR 處理完成，耗時: ${processingTime.toFixed(2)} 秒`);
 
     // 检查处理结果
     if (!result.success) {
@@ -91,48 +103,64 @@ export async function POST(req: NextRequest) {
 
     // 構建回應資料（兼容舊格式）
     try {
+      // 確保所有欄位都是可序列化的（移除 undefined、null 等）
+      const safeStringify = (value: any): string => {
+        if (value === undefined || value === null) return '';
+        if (typeof value === 'string') return value;
+        return String(value);
+      };
+
       const responseData = {
         // 兼容舊的 upload_segment_ocr 格式
         message: 'OCR 辨識完成',
-        result_text: finalText, // 舊格式欄位
-        text: finalText, // 前端可能使用的欄位
-        ocr_text: finalText, // 前端可能使用的欄位
+        result_text: safeStringify(finalText),
+        text: safeStringify(finalText),
+        ocr_text: safeStringify(finalText),
 
         // 保留完整的詳細資料供未來使用
         success: true,
         data: {
           original_ocr: {
-            success: result.original_ocr.success,
-            text: result.original_ocr.text || '',
+            success: result.original_ocr.success || false,
+            text: safeStringify(result.original_ocr.text),
             text_length: result.original_ocr.text_length || 0,
             ocr_time: result.original_ocr.ocr_time || 0,
-            finish_reason: result.original_ocr.finish_reason,
-            error: result.original_ocr.error,
+            finish_reason: safeStringify(result.original_ocr.finish_reason),
+            error: safeStringify(result.original_ocr.error),
           },
           binary_ocr: {
-            success: result.binary_ocr.success,
-            text: result.binary_ocr.text || '',
+            success: result.binary_ocr.success || false,
+            text: safeStringify(result.binary_ocr.text),
             text_length: result.binary_ocr.text_length || 0,
             ocr_time: result.binary_ocr.ocr_time || 0,
-            finish_reason: result.binary_ocr.finish_reason,
-            error: result.binary_ocr.error,
+            finish_reason: safeStringify(result.binary_ocr.finish_reason),
+            error: safeStringify(result.binary_ocr.error),
           },
           optimized: {
-            success: result.cross_compare.success,
-            text: result.cross_compare.text || '',
+            success: result.cross_compare.success || false,
+            text: safeStringify(result.cross_compare.text),
             text_length: result.cross_compare.text_length || 0,
             compare_time: result.cross_compare.compare_time || 0,
-            finish_reason: result.cross_compare.finish_reason,
-            error: result.cross_compare.error,
+            finish_reason: safeStringify(result.cross_compare.finish_reason),
+            error: safeStringify(result.cross_compare.error),
           },
-          total_time: result.total_time,
-          load_time: result.load_time,
-          binarize_time: result.binarize_time,
+          total_time: result.total_time || 0,
+          load_time: result.load_time || 0,
+          binarize_time: result.binarize_time || 0,
         },
       };
 
-      // 檢查回應大小（Vercel 限制約 4.5MB）
-      const responseSize = JSON.stringify(responseData).length;
+      // 測試 JSON 序列化（檢查是否有無法序列化的數據）
+      let responseSize = 0;
+      try {
+        const testString = JSON.stringify(responseData);
+        responseSize = testString.length;
+        console.log('✅ JSON 序列化測試成功');
+      } catch (serializeError: any) {
+        console.error('❌ JSON 序列化失敗:', serializeError.message);
+        throw new Error(`無法序列化回應資料: ${serializeError.message}`);
+      }
+
       console.log('✅ 構建回應資料成功');
       console.log(`   - Final Text 長度: ${finalText.length}`);
       console.log(`   - Response Data 大小: ${(responseSize / 1024 / 1024).toFixed(2)} MB (${responseSize} bytes)`);
@@ -142,40 +170,81 @@ export async function POST(req: NextRequest) {
         // 如果回應過大，只返回必要的資料
         const compactResponseData = {
           message: 'OCR 辨識完成',
-          result_text: finalText,
-          text: finalText,
-          ocr_text: finalText,
+          result_text: safeStringify(finalText),
+          text: safeStringify(finalText),
+          ocr_text: safeStringify(finalText),
           success: true,
           data: {
             optimized: {
-              success: result.cross_compare.success,
-              text: result.cross_compare.text || '',
+              success: result.cross_compare.success || false,
+              text: safeStringify(result.cross_compare.text),
               text_length: result.cross_compare.text_length || 0,
             },
-            total_time: result.total_time,
+            total_time: result.total_time || 0,
           },
         };
-        console.log(`   - 使用精簡回應，大小: ${(JSON.stringify(compactResponseData).length / 1024 / 1024).toFixed(2)} MB`);
+        const compactSize = JSON.stringify(compactResponseData).length;
+        console.log(`   - 使用精簡回應，大小: ${(compactSize / 1024 / 1024).toFixed(2)} MB`);
         return successResponse(compactResponseData, 'OCR 辨識完成');
       }
 
-      return successResponse(responseData, 'OCR 辨識完成');
+      // 嘗試返回回應
+      try {
+        const responseStartTime = Date.now();
+        const response = successResponse(responseData, 'OCR 辨識完成');
+        const responseTime = (Date.now() - responseStartTime) / 1000;
+        console.log(`✅ 成功創建 NextResponse (耗時: ${responseTime.toFixed(2)} 秒)`);
+        
+        const totalTime = (Date.now() - requestStartTime) / 1000;
+        console.log(`🎉 [OCR API] 請求處理完成，總耗時: ${totalTime.toFixed(2)} 秒`);
+        
+        return response;
+      } catch (responseError: any) {
+        console.error('❌ 創建 NextResponse 失敗:', responseError.message);
+        console.error('   錯誤堆疊:', responseError.stack);
+        console.error('   錯誤詳情:', responseError);
+        throw responseError;
+      }
     } catch (buildError: any) {
       console.error('❌ 構建回應資料失敗:', buildError.message);
+      console.error('   錯誤堆疊:', buildError.stack);
       console.error('   錯誤詳情:', buildError);
       return errorResponse(
         `構建回應資料失敗: ${buildError.message}`,
         undefined,
-        { finalTextLength: finalText.length },
+        { 
+          finalTextLength: finalText.length,
+          errorType: buildError.constructor.name,
+        },
         500
       );
     }
   } catch (error: any) {
-    console.error('Error in gemini_ocr:', error);
+    const totalTime = (Date.now() - requestStartTime) / 1000;
+    console.error('❌ [OCR API] 請求處理失敗');
+    console.error(`   總耗時: ${totalTime.toFixed(2)} 秒`);
+    console.error(`   錯誤訊息: ${error.message}`);
+    console.error(`   錯誤類型: ${error.constructor.name}`);
+    console.error(`   錯誤堆疊:`, error.stack);
+    
+    // 檢查是否為超時錯誤
+    if (error.message?.includes('timeout') || error.message?.includes('TIMEOUT') || totalTime > 250) {
+      console.error('⚠️ 可能是函數超時錯誤');
+      return errorResponse(
+        'OCR 處理超時，請稍後再試或使用較小的圖片',
+        'TIMEOUT',
+        { processingTime: totalTime },
+        504
+      );
+    }
+    
     return errorResponse(
       `處理過程發生錯誤: ${error.message}`,
       undefined,
-      undefined,
+      { 
+        processingTime: totalTime,
+        errorType: error.constructor.name,
+      },
       500
     );
   }
