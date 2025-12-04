@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateJsonFields } from '@/lib/middleware/request-validator';
 import { errorResponse, successResponse } from '@/lib/utils/response-helper';
+import { createEssay } from '@/lib/db/essay';
+import { createScore } from '@/lib/db/score';
+import { findRubricByName, createRubric } from '@/lib/db/rubric';
 
 const API_KEY = process.env.GEMINI_API_KEY;
 const API_URL = process.env.GEMINI_API_URL;
@@ -54,7 +57,7 @@ const API_URL = process.env.GEMINI_API_URL;
  *                   properties:
  *                     score:
  *                       type: string
- *                       example: "85/100"
+ *                       example: "15/25"
  *                     feedback:
  *                       type: string
  *                       example: "整體評語..."
@@ -184,11 +187,69 @@ ${content}
 
       const gradeData = JSON.parse(jsonString);
 
+      // --- 儲存至資料庫 ---
+      let essayId = null;
+      let scoreId = null;
+
+      try {
+        // 1. 儲存作文
+        // 暫時使用 guest 作為預設 user_id，或者從請求中獲取（如果有的話）
+        const userId = (data.userId as string) || 'guest';
+
+        const savedEssay = await createEssay({
+          user_id: userId,
+          title: topic,
+          content: content,
+          // 如果前端有傳圖片路徑或 OCR 文字，也可以在這裡存入
+          // ocr_raw_text: data.ocr_text, 
+          // image_path: data.image_path,
+        });
+        essayId = savedEssay.id;
+
+        // 2. 處理評分標準 (Rubric)
+        // 嘗試尋找名稱為 "Custom Rubric" 的標準，如果沒有則建立一個
+        // 這裡簡化處理，實際可能需要根據前端傳來的 rubric 內容去比對或建立
+        let existingRubric = await findRubricByName('Custom Rubric');
+        if (!existingRubric) {
+          existingRubric = await createRubric({
+            name: 'Custom Rubric',
+            title: '自定義評分標準',
+            description: '由使用者輸入的評分標準',
+            criteria_json: { raw_text: rubric }, // 簡單存入原始文字
+          });
+        }
+
+        // 3. 儲存評分結果
+        const savedScore = await createScore({
+          essay_id: savedEssay.id,
+          user_id: userId,
+          rubric_id: existingRubric.id,
+          total_score: gradeData.score || 'N/A',
+          feedback_json: {
+            feedback: gradeData.feedback,
+            strengths: gradeData.strengths,
+            improvements: gradeData.improvements,
+          },
+          // 如果 AI 有回傳更細節的分析，可以存入對應欄位
+          // grammar_analysis: ...,
+        });
+        scoreId = savedScore.id;
+
+        console.log(`Essay saved: ${essayId}, Score saved: ${scoreId}`);
+
+      } catch (dbError) {
+        console.error('Database save error:', dbError);
+        // 資料庫儲存失敗不應影響回傳評分結果給前端，但可以記錄錯誤
+      }
+      // ------------------
+
       return successResponse({
         score: gradeData.score || 'N/A',
         feedback: gradeData.feedback || '',
         strengths: gradeData.strengths || [],
         improvements: gradeData.improvements || [],
+        essayId: essayId, // 回傳 ID 給前端
+        scoreId: scoreId,
       });
     } catch (parseError) {
       console.error('JSON Parse Error:', parseError);
