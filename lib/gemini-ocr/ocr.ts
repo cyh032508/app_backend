@@ -45,15 +45,25 @@ function initializeVertexAI() {
         }
         
         // 確保正確處理 private_key 的換行符號
-        const privateKey = credentials.private_key.replace(/\\n/g, '\n');
+        let privateKey = credentials.private_key;
+        // 如果 private_key 包含 \n 字串，需要轉換為實際換行
+        if (privateKey.includes('\\n')) {
+          privateKey = privateKey.replace(/\\n/g, '\n');
+        }
         
-        // 使用 googleAuthOptions 來設置認證（正確的方式）
+        // 使用 googleAuthOptions 來設置認證
+        // 根據 @google-cloud/vertexai 文檔和範例
         vertexAIConfig.googleAuthOptions = {
           credentials: {
             client_email: credentials.client_email,
             private_key: privateKey,
           },
         };
+        
+        // 調試：驗證 private_key 格式
+        if (!privateKey.includes('BEGIN PRIVATE KEY')) {
+          console.warn('⚠️ Private key 格式可能不正確，應該包含 "BEGIN PRIVATE KEY"');
+        }
         
         console.log('✅ 使用 GOOGLE_APPLICATION_CREDENTIALS_JSON 進行 Vertex AI 認證');
         console.log(`   - Project ID: ${credentials.project_id}`);
@@ -99,7 +109,21 @@ function initializeVertexAI() {
       console.warn('   2. CLIENT_EMAIL + PRIVATE_KEY (拆分環境變數)');
     }
 
-    vertexAI = new VertexAI(vertexAIConfig);
+    // 調試：輸出配置（不包含敏感信息）
+    console.log('🔧 [Vertex AI] 初始化配置:');
+    console.log(`   - Project: ${vertexAIConfig.project}`);
+    console.log(`   - Location: ${vertexAIConfig.location}`);
+    console.log(`   - Has googleAuthOptions: ${!!vertexAIConfig.googleAuthOptions}`);
+    console.log(`   - Has credentials: ${!!vertexAIConfig.credentials}`);
+    
+    try {
+      vertexAI = new VertexAI(vertexAIConfig);
+      console.log('✅ VertexAI 初始化成功');
+    } catch (error: any) {
+      console.error('❌ VertexAI 初始化失敗:', error.message);
+      console.error('   錯誤詳情:', error);
+      throw error;
+    }
     model = vertexAI.preview.getGenerativeModel({
       model: MODEL_NAME,
       generationConfig: {
