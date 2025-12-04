@@ -17,10 +17,31 @@ let model: any = null;
 
 function initializeVertexAI() {
   if (!vertexAI) {
-    vertexAI = new VertexAI({
+    // 在 Vercel/serverless 環境中，使用服務帳號憑證
+    const vertexAIConfig: any = {
       project: PROJECT_ID,
       location: LOCATION,
-    });
+    };
+
+    // 如果提供了服務帳號 JSON（作為環境變數），使用它進行認證
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+      try {
+        const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+        vertexAIConfig.credentials = credentials;
+        console.log('✅ 使用服務帳號憑證進行 Vertex AI 認證');
+      } catch (error) {
+        console.error('❌ 無法解析 GOOGLE_APPLICATION_CREDENTIALS_JSON:', error);
+        throw new Error('服務帳號憑證格式錯誤');
+      }
+    } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      // 如果提供了憑證文件路徑（本地開發環境）
+      console.log('✅ 使用 GOOGLE_APPLICATION_CREDENTIALS 文件進行認證');
+    } else {
+      // 嘗試使用默認認證（本地開發環境的 gcloud auth）
+      console.warn('⚠️ 未找到認證憑證，嘗試使用默認認證（僅適用於本地開發環境）');
+    }
+
+    vertexAI = new VertexAI(vertexAIConfig);
     model = vertexAI.preview.getGenerativeModel({
       model: MODEL_NAME,
       generationConfig: {
