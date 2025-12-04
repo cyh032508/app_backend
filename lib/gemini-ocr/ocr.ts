@@ -46,9 +46,11 @@ function initializeVertexAI() {
         }
         
         // 這是修復 500 錯誤的關鍵：確保正確處理 private_key 的換行符號
-        const privateKey = credentials.private_key
-          ? credentials.private_key.replace(/\\n/g, '\n')
-          : undefined;
+        if (!credentials.private_key) {
+          throw new Error('服務帳號憑證中缺少 private_key');
+        }
+        
+        const privateKey = credentials.private_key.replace(/\\n/g, '\n');
         
         // 使用 googleAuthOptions 來設置認證（這是正確的方式）
         vertexAIConfig.googleAuthOptions = {
@@ -77,9 +79,11 @@ function initializeVertexAI() {
     else if (process.env.CLIENT_EMAIL && process.env.PRIVATE_KEY) {
       try {
         // 這是修復 500 錯誤的關鍵：確保正確處理 private_key 的換行符號
-        const privateKey = process.env.PRIVATE_KEY
-          ? process.env.PRIVATE_KEY.replace(/\\n/g, '\n')
-          : undefined;
+        const privateKey = process.env.PRIVATE_KEY.replace(/\\n/g, '\n');
+        
+        if (!privateKey) {
+          throw new Error('PRIVATE_KEY 環境變數為空');
+        }
         
         vertexAIConfig.googleAuthOptions = {
           credentials: {
