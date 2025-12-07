@@ -9,6 +9,7 @@
   - [注册 (`/api/auth/register`)](#注册-apiauthregister)
   - [登录 (`/api/auth/login`)](#登录-apiauthlogin)
   - [登出 (`/api/auth/logout`)](#登出-apiauthlogout)
+  - [重置密码 (`/api/auth/reset-password`)](#重置密码-apiauthreset-password)
 
 ---
 
@@ -507,6 +508,140 @@ fun logout(callback: (Result<Unit>) -> Unit) {
             callback(Result.success(Unit))
         }
     })
+}
+```
+
+### 重置密码 (`/api/auth/reset-password`)
+
+#### iOS (Swift) 示例
+
+```swift
+func resetPassword(oldPassword: String, newPassword: String, completion: @escaping (Result<Void, Error>) -> Void) {
+    guard let url = URL(string: "\(baseURL)/api/auth/reset-password"),
+          let token = UserDefaults.standard.string(forKey: "auth_token") else {
+        completion(.failure(NSError(domain: "No token found", code: -1)))
+        return
+    }
+    
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    
+    let body: [String: Any] = [
+        "oldPassword": oldPassword,
+        "newPassword": newPassword
+    ]
+    
+    request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+    
+    URLSession.shared.dataTask(with: request) { data, response, error in
+        if let error = error {
+            completion(.failure(error))
+            return
+        }
+        
+        guard let data = data else {
+            completion(.failure(NSError(domain: "No data received", code: -1)))
+            return
+        }
+        
+        do {
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            if let success = json?["success"] as? Bool, success == true {
+                completion(.success(()))
+            } else {
+                let message = json?["message"] as? String ?? "Password reset failed"
+                completion(.failure(NSError(domain: message, code: -1)))
+            }
+        } catch {
+            completion(.failure(error))
+        }
+    }.resume()
+}
+```
+
+#### Android (Kotlin) 示例
+
+```kotlin
+fun resetPassword(oldPassword: String, newPassword: String, callback: (Result<Unit>) -> Unit) {
+    val sharedPref = context.getSharedPreferences("auth", Context.MODE_PRIVATE)
+    val token = sharedPref.getString("token", null) ?: run {
+        callback(Result.failure(Exception("No token found")))
+        return
+    }
+    
+    val json = JSONObject().apply {
+        put("oldPassword", oldPassword)
+        put("newPassword", newPassword)
+    }
+    
+    val requestBody = json.toString().toRequestBody("application/json".toMediaType())
+    
+    val request = Request.Builder()
+        .url("$baseURL/api/auth/reset-password")
+        .post(requestBody)
+        .addHeader("Authorization", "Bearer $token")
+        .build()
+    
+    client.newCall(request).enqueue(object : Callback {
+        override fun onResponse(call: Call, response: Response) {
+            response.body?.let { body ->
+                try {
+                    val json = JSONObject(body.string())
+                    if (json.getBoolean("success")) {
+                        callback(Result.success(Unit))
+                    } else {
+                        val message = json.getString("message")
+                        callback(Result.failure(Exception(message)))
+                    }
+                } catch (e: Exception) {
+                    callback(Result.failure(e))
+                }
+            } ?: callback(Result.failure(Exception("No response body")))
+        }
+        
+        override fun onFailure(call: Call, e: IOException) {
+            callback(Result.failure(e))
+        }
+    })
+}
+```
+
+#### Android (Kotlin Coroutines) 示例
+
+```kotlin
+suspend fun resetPassword(oldPassword: String, newPassword: String): Result<Unit> = withContext(Dispatchers.IO) {
+    try {
+        val tokenManager = TokenManager(context)
+        val token = tokenManager.getToken() ?: return@withContext Result.failure(Exception("No token found"))
+        
+        val json = JSONObject().apply {
+            put("oldPassword", oldPassword)
+            put("newPassword", newPassword)
+        }
+        
+        val requestBody = json.toString().toRequestBody("application/json".toMediaType())
+        
+        val request = Request.Builder()
+            .url("$baseURL/api/auth/reset-password")
+            .post(requestBody)
+            .addHeader("Authorization", "Bearer $token")
+            .build()
+        
+        val response = client.newCall(request).execute()
+        val jsonString = response.body?.string() ?: throw Exception("No response body")
+        val json = JSONObject(jsonString)
+        
+        if (json.getBoolean("success")) {
+            Result.success(Unit)
+        } else {
+            val message = json.getString("message")
+            Result.failure(Exception(message))
+        }
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
 }
 ```
 
