@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateJsonFields } from '@/lib/middleware/request-validator';
 import { errorResponse, successResponse } from '@/lib/utils/response-helper';
+import { generateText } from '@/lib/gemini-ocr/text-generation';
 import { createEssay } from '@/lib/db/essay';
 import { createScore } from '@/lib/db/score';
 import { findRubricByName, createRubric } from '@/lib/db/rubric';
-
-const API_KEY = process.env.GEMINI_API_KEY;
-const API_URL = process.env.GEMINI_API_URL;
 
 /**
  * @swagger
@@ -102,20 +100,8 @@ export async function POST(req: NextRequest) {
       return errorResponse('topic、content 或 rubric 內容為空', undefined, undefined, 400);
     }
 
-    if (!API_KEY || !API_URL) {
-      return errorResponse('API_KEY 或 API_URL 尚未設定或讀取失敗', undefined, undefined, 500);
-    }
-
-    // 评分的 prompt
-    const prompt = `請根據以下評分標準，對這篇作文進行批改和評分。
-
-作文題目：${topic}
-
-評分標準：
-${rubric}
-
-作文內容：
-${content}
+    // 評分的系統提示詞
+    const systemPrompt = `你是一位資深的國文教師和評分專家。請根據提供的評分標準，對作文進行專業的批改和評分。
 
 請嚴格遵守以下規則：
 1. 如果作文內容與題目完全無關（文不對題），請直接給予 0-25 分，並在「整體評語」中說明原因。
@@ -128,56 +114,36 @@ ${content}
 
 範例格式：
 {
-  "score": "85/100",
-  "feedback": "...",
+  "score": "18/25",
+  "feedback": "整體評語...",
   "strengths": ["優點1", "優點2"],
   "improvements": ["建議1", "建議2"]
-}
-`;
+}`;
 
-    // 呼叫 Gemini API
-    const response = await fetch(`${API_URL}?key=${API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: prompt }],
-          },
-        ],
-      }),
-    });
+    // 評分的用戶提示詞
+    const userPrompt = `請根據以下評分標準，對這篇作文進行批改和評分。
 
-    if (!response.ok) {
-      const errorText = await response.text();
+作文題目：${topic}
+
+評分標準：
+${rubric}
+
+作文內容：
+${content}`;
+
+    // 使用 Vertex AI 生成評分結果
+    const result = await generateText(systemPrompt, userPrompt, 0.3); // 使用較低的溫度以獲得更一致的評分
+
+    if (!result.success || !result.text) {
       return errorResponse(
-        `上游服務回傳錯誤: ${response.status}`,
+        result.error || '無法取得評分結果',
         undefined,
-        { status_code: response.status, upstream: errorText },
-        response.status
+        undefined,
+        500
       );
     }
 
-    const result = await response.json();
-
-    // 根據官方格式，取 candidates 裡第一筆的 content 物件內的 parts 第一筆的 text
-    let gradeText: string | null = null;
-    const candidates = result.candidates;
-    if (candidates && candidates.length > 0) {
-      const contentObj = candidates[0].content;
-      if (contentObj) {
-        const parts = contentObj.parts;
-        if (parts && parts.length > 0) {
-          gradeText = parts[0].text;
-        }
-      }
-    }
-
-    if (!gradeText) {
-      return errorResponse('無法取得評分結果', undefined, undefined, 500);
-    }
+    const gradeText = result.text;
 
     // 嘗試解析 JSON 格式的回應
     try {

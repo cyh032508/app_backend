@@ -20,7 +20,7 @@ export const OCR_PROMPT = `你是一位專精於「中文直行稿紙」的**高
 
 ---
 
-### 🚨 核心抄寫原則 (Strict Transcription Rules)：
+### 核心抄寫原則 (Strict Transcription Rules)：
 1.  **絕對閱讀順序**：
     * **直書邏輯**：單字由**上至下**閱讀。
     * **行文邏輯**：整行由**右至左**換行。
