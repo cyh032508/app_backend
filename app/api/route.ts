@@ -39,6 +39,7 @@ export async function GET() {
       'POST /api/auth/login - 用戶登入',
       'POST /api/auth/logout - 用戶登出',
       'POST /api/auth/reset-password - 重置密碼（需登入）',
+      'POST /api/history - 保存批改歷史記錄（需登入）',
       'GET /api/history - 查詢批改歷史記錄（需登入）',
       'POST /api/refine_ocr_text - 文字優化',
       'POST /api/gemini_ocr - OCR識別 (Gemini AI)',
