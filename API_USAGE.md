@@ -10,6 +10,7 @@
   - [登录 (`/api/auth/login`)](#登录-apiauthlogin)
   - [登出 (`/api/auth/logout`)](#登出-apiauthlogout)
   - [重置密码 (`/api/auth/reset-password`)](#重置密码-apiauthreset-password)
+- [历史记录 API (`/api/history`)](#历史记录-api-apihistory)
 
 ---
 
