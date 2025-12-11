@@ -8,6 +8,7 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")      // App 運行時走連線池 (Port 6543)
   directUrl = env("DIRECT_URL")        // Push/Migrate 時直連 (Port 5432)
+  // 注意：如果本地沒有 DIRECT_URL 環境變數，可以暫時移除 directUrl 這行
 }
 
 model Essays {
@@ -31,6 +32,16 @@ model Scores {
   rubric_id       String
   total_score     String
   feedback_json   Json?
+
+  // 新增字段 - rank-then-score 相關
+  scoring_method  String?   // "rank-then-score" 或 "traditional"
+  rank_position   Int?      // 排名位置 (1-50)
+  percentile      Int?      // 百分位 (0-100)
+
+  // 新增字段 - 五維度評語
+  dimension_feedbacks Json? // 存儲五個維度的評語
+
+  // 保留字段（未來使用）
   grammar_analysis Json?
   vocabulary_usage Json?
   structure_issues Json?

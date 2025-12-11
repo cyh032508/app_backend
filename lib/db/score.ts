@@ -11,6 +11,16 @@ export interface CreateScoreData {
   rubric_id: string;
   total_score: string;
   feedback_json?: any;
+
+  // 新增字段 - rank-then-score 相關
+  scoring_method?: string;    // "rank-then-score" 或 "traditional"
+  rank_position?: number;     // 排名位置 (1-50)
+  percentile?: number;        // 百分位 (0-100)
+
+  // 新增字段 - 五維度評語
+  dimension_feedbacks?: any;  // 存儲五個維度的評語
+
+  // 保留字段（未來使用）
   grammar_analysis?: any;
   vocabulary_usage?: any;
   structure_issues?: any;
