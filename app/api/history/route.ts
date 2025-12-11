@@ -180,12 +180,32 @@ import { prisma } from '@/lib/db/prisma';
  *                                 type: string
  *                               feedback_json:
  *                                 type: object
+ *                                 nullable: true
+ *                               scoring_method:
+ *                                 type: string
+ *                                 nullable: true
+ *                                 description: 评分方法（"rank-then-score" 或 "traditional"）
+ *                               rank_position:
+ *                                 type: integer
+ *                                 nullable: true
+ *                                 description: 排名位置 (1-50)
+ *                               percentile:
+ *                                 type: integer
+ *                                 nullable: true
+ *                                 description: 百分位 (0-100)
+ *                               dimension_feedbacks:
+ *                                 type: object
+ *                                 nullable: true
+ *                                 description: 五個維度的評語
  *                               grammar_analysis:
  *                                 type: object
+ *                                 nullable: true
  *                               vocabulary_usage:
  *                                 type: object
+ *                                 nullable: true
  *                               structure_issues:
  *                                 type: object
+ *                                 nullable: true
  *                               created_at:
  *                                 type: string
  *                                 format: date-time
@@ -392,20 +412,27 @@ export async function GET(req: NextRequest) {
         return {
           essay: {
             id: essay.id,
-            title: essay.title,
-            content: essay.content,
-            ocr_raw_text: essay.ocr_raw_text,
-            image_path: essay.image_path,
+            title: essay.title || null,
+            content: essay.content || null,
+            ocr_raw_text: essay.ocr_raw_text || null,
+            image_path: essay.image_path || null,
             created_at: essay.created_at.toISOString(),
           },
           score: score
             ? {
                 id: score.id,
                 total_score: score.total_score,
-                feedback_json: score.feedback_json,
-                grammar_analysis: score.grammar_analysis,
-                vocabulary_usage: score.vocabulary_usage,
-                structure_issues: score.structure_issues,
+                feedback_json: score.feedback_json || null,
+                // 新增字段 - rank-then-score 相關
+                scoring_method: score.scoring_method || null,
+                rank_position: score.rank_position || null,
+                percentile: score.percentile || null,
+                // 新增字段 - 五維度評語
+                dimension_feedbacks: score.dimension_feedbacks || null,
+                // 保留字段（未來使用）
+                grammar_analysis: score.grammar_analysis || null,
+                vocabulary_usage: score.vocabulary_usage || null,
+                structure_issues: score.structure_issues || null,
                 created_at: score.created_at.toISOString(),
               }
             : null,
@@ -414,7 +441,7 @@ export async function GET(req: NextRequest) {
                 id: rubric.id,
                 name: rubric.name,
                 title: rubric.title,
-                description: rubric.description,
+                description: rubric.description || null,
               }
             : null,
         };
