@@ -31,89 +31,73 @@ export async function processImage(
 
   const totalStartTime = Date.now();
 
-  // 步驟 1: 讀取原始圖片
-  console.log('📸 步驟 1: 讀取原始圖片...');
-  let loadTime = 0;
-  let originalData: Buffer;
-  try {
-    const loadStart = Date.now();
-    originalData = await loadOriginalImage(imageBuffer);
-    loadTime = (Date.now() - loadStart) / 1000;
-    console.log(`✅ 原始圖片讀取完成 (耗時: ${loadTime.toFixed(2)} 秒)`);
-  } catch (error: any) {
-    console.error(`❌ 讀取原始圖片失敗: ${error.message}`);
-    return {
-      success: false,
-      error: `讀取原始圖片失敗: ${error.message}`,
-      image: imageName,
-      original_ocr: { success: false, error: error.message },
-      binary_ocr: { success: false, error: '未執行' },
-      cross_compare: { success: false, error: '未執行' },
-      load_time: 0,
-      binarize_time: 0,
-      total_time: 0,
-    };
-  }
+  // 定義原始圖片處理流程
+  const processOriginalTask = async () => {
+    let loadTime = 0;
+    let originalData: Buffer | null = null;
+    let ocrResult: OCRResult = { success: false, error: '未執行' };
 
-  // 步驟 2: 二值化處理
-  console.log('📸 步驟 2: 二值化處理...');
-  let binarizeTime = 0;
-  let binaryData: Buffer;
-  try {
-    const binarizeStart = Date.now();
-    binaryData = await binarizeImage(imageBuffer);
-    binarizeTime = (Date.now() - binarizeStart) / 1000;
-    console.log(`✅ 二值化完成 (耗時: ${binarizeTime.toFixed(2)} 秒)`);
-  } catch (error: any) {
-    console.error(`❌ 二值化失敗: ${error.message}`);
-    return {
-      success: false,
-      error: `二值化失敗: ${error.message}`,
-      image: imageName,
-      original_ocr: { success: false, error: '未執行' },
-      binary_ocr: { success: false, error: error.message },
-      cross_compare: { success: false, error: '未執行' },
-      load_time: loadTime,
-      binarize_time: 0,
-      total_time: 0,
-    };
-  }
+    try {
+      console.log('📸 [流程 A] 開始讀取原始圖片...');
+      const loadStart = Date.now();
+      originalData = await loadOriginalImage(imageBuffer);
+      loadTime = (Date.now() - loadStart) / 1000;
+      console.log(`✅ [流程 A] 原始圖片讀取完成 (耗時: ${loadTime.toFixed(2)} 秒)`);
 
-  // 步驟 3: 第一次 OCR - 原始圖片
-  console.log('\n🤖 步驟 3: 第一次 OCR 辨識（原始圖片）...');
-  const originalOCRResult = await performOCR(originalData, '原始圖片');
+      console.log('🤖 [流程 A] 開始原始圖片 OCR 辨識...');
+      ocrResult = await performOCR(originalData, '原始圖片');
 
-  if (originalOCRResult.success) {
-    console.log(
-      `✅ 原始圖片 OCR 完成 (耗時: ${originalOCRResult.ocr_time?.toFixed(2)} 秒)`
-    );
-    console.log(`📊 輸出長度: ${originalOCRResult.text_length} 字元`);
-    if (originalOCRResult.finish_reason_str) {
-      console.log(`📋 結束原因: ${originalOCRResult.finish_reason_str}`);
+      if (ocrResult.success) {
+        console.log(`✅ [流程 A] 原始圖片 OCR 完成 (耗時: ${ocrResult.ocr_time?.toFixed(2)} 秒)`);
+      } else {
+        console.error(`❌ [流程 A] 原始圖片 OCR 失敗: ${ocrResult.error}`);
+      }
+    } catch (error: any) {
+      console.error(`❌ [流程 A] 處理失敗: ${error.message}`);
+      ocrResult = { success: false, error: `處理失敗: ${error.message}` };
     }
-  } else {
-    console.error(
-      `❌ 原始圖片 OCR 失敗: ${originalOCRResult.error || 'unknown error'}`
-    );
-  }
 
-  // 步驟 4: 第二次 OCR - 二值化圖片
-  console.log('\n🤖 步驟 4: 第二次 OCR 辨識（二值化圖片）...');
-  const binaryOCRResult = await performOCR(binaryData, '二值化圖片');
+    return { loadTime, ocrResult };
+  };
 
-  if (binaryOCRResult.success) {
-    console.log(
-      `✅ 二值化圖片 OCR 完成 (耗時: ${binaryOCRResult.ocr_time?.toFixed(2)} 秒)`
-    );
-    console.log(`📊 輸出長度: ${binaryOCRResult.text_length} 字元`);
-    if (binaryOCRResult.finish_reason_str) {
-      console.log(`📋 結束原因: ${binaryOCRResult.finish_reason_str}`);
+  // 定義二值化圖片處理流程
+  const processBinaryTask = async () => {
+    let binarizeTime = 0;
+    let binaryData: Buffer | null = null;
+    let ocrResult: OCRResult = { success: false, error: '未執行' };
+
+    try {
+      console.log('📸 [流程 B] 開始二值化處理...');
+      const binarizeStart = Date.now();
+      binaryData = await binarizeImage(imageBuffer);
+      binarizeTime = (Date.now() - binarizeStart) / 1000;
+      console.log(`✅ [流程 B] 二值化完成 (耗時: ${binarizeTime.toFixed(2)} 秒)`);
+
+      console.log('🤖 [流程 B] 開始二值化圖片 OCR 辨識...');
+      ocrResult = await performOCR(binaryData, '二值化圖片');
+
+      if (ocrResult.success) {
+        console.log(`✅ [流程 B] 二值化圖片 OCR 完成 (耗時: ${ocrResult.ocr_time?.toFixed(2)} 秒)`);
+      } else {
+        console.error(`❌ [流程 B] 二值化圖片 OCR 失敗: ${ocrResult.error}`);
+      }
+    } catch (error: any) {
+      console.error(`❌ [流程 B] 處理失敗: ${error.message}`);
+      ocrResult = { success: false, error: `處理失敗: ${error.message}` };
     }
-  } else {
-    console.error(
-      `❌ 二值化圖片 OCR 失敗: ${binaryOCRResult.error || 'unknown error'}`
-    );
-  }
+
+    return { binarizeTime, ocrResult };
+  };
+
+  // 平行執行兩個流程
+  console.log('🚀 啟動平行處理流程...');
+  const [originalResult, binaryResult] = await Promise.all([
+    processOriginalTask(),
+    processBinaryTask()
+  ]);
+
+  const { loadTime, ocrResult: originalOCRResult } = originalResult;
+  const { binarizeTime, ocrResult: binaryOCRResult } = binaryResult;
 
   // 步驟 5: 交叉比對優化
   console.log('\n🔍 步驟 5: 交叉比對兩份結果...');
