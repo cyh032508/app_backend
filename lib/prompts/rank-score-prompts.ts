@@ -23,6 +23,14 @@ export function getGenerateSamplesPrompt(count: number = 50): string {
 4. 文章內容必須與題目相關
 5. 確保分數分布符合常態分布（中間多、兩端少）
 
+JSON 格式要求（非常重要）：
+- 必須是有效的 JSON 格式
+- content 中的所有雙引號必須用單引號替代，或使用頓號「」
+- content 中不要使用換行符，用空格或句號分隔段落
+- 不要在 content 中使用特殊符號如 \、"、'等
+- 每個 sample 之間必須用逗號分隔
+- 最後一個 sample 後面不要加逗號
+
 請以純 JSON 格式回應，不要包含任何 Markdown 標記：
 {
   "samples": [

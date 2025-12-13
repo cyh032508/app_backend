@@ -148,21 +148,38 @@ export async function POST(req: NextRequest) {
 
     let samples: Array<{ id: number; targetScore: number; content: string }> = [];
     try {
+      // 提取 JSON 部分
       const jsonMatch = generateResult.text.match(/\{[\s\S]*\}/);
-      const jsonString = jsonMatch ? jsonMatch[0] : generateResult.text;
+      let jsonString = jsonMatch ? jsonMatch[0] : generateResult.text;
+
+      // 清理常見的 JSON 格式問題
+      // 1. 移除可能的 markdown 代碼塊標記
+      jsonString = jsonString.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+
+      // 2. 嘗試修復末尾的逗號問題（trailing comma）
+      jsonString = jsonString.replace(/,(\s*[}\]])/g, '$1');
+
+      // 嘗試解析 JSON
       const samplesData = JSON.parse(jsonString);
 
       if (!samplesData.samples || !Array.isArray(samplesData.samples)) {
-        throw new Error('AI 返回的參考文章格式錯誤');
+        throw new Error('AI 返回的參考文章格式錯誤：缺少 samples 陣列');
+      }
+
+      if (samplesData.samples.length === 0) {
+        throw new Error('AI 返回的參考文章數量為 0');
       }
 
       samples = samplesData.samples;
       console.log(`✅ [Step 1] 成功生成 ${samples.length} 篇參考文章`);
     } catch (parseError: any) {
       console.error('❌ [Step 1] JSON 解析錯誤:', parseError.message);
-      console.log('原始回應:', generateResult.text.substring(0, 500));
+      console.log('❌ 錯誤位置:', parseError.message);
+      console.log('📄 原始回應前 1000 字元:', generateResult.text.substring(0, 1000));
+      console.log('📄 原始回應後 500 字元:', generateResult.text.substring(generateResult.text.length - 500));
+
       return errorResponse(
-        'AI 返回的參考文章格式錯誤，無法解析',
+        `AI 返回的參考文章格式錯誤，無法解析。錯誤：${parseError.message}。請重試或減少 sampleCount 參數（建議使用 20-30）`,
         undefined,
         undefined,
         500
