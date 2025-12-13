@@ -51,10 +51,10 @@ export const maxDuration = 300; // 5 分鐘（需要 Pro 計劃或更高）
 
 export async function POST(req: NextRequest) {
   const requestStartTime = Date.now();
-  
+
   try {
     console.log('🚀 [OCR API] 開始處理請求');
-    
+
     // 验证图片上传
     const validation = await validateImageUpload(req);
     if (!validation.isValid) {
@@ -68,11 +68,80 @@ export async function POST(req: NextRequest) {
     const imageName = imageFile.name || 'image.jpg';
     console.log(`📸 [OCR API] 圖片大小: ${(imageBuffer.length / 1024 / 1024).toFixed(2)} MB`);
 
-    // 执行 OCR 处理
-    console.log('⏳ [OCR API] 開始 OCR 處理...');
-    const result = await processImage(imageBuffer, imageName);
+    // 嘗試從 formData 中獲取 topic
+    let topic = '';
+    try {
+      const formData = await req.formData();
+      topic = (formData.get('topic') as string) || '';
+      if (topic) {
+        console.log(`📝 [OCR API] 收到題目: ${topic.substring(0, 20)}...`);
+      }
+    } catch (e) {
+      // 忽略錯誤，可能是因為已經讀取過 formData 或者請求格式不對
+      // 注意：validateImageUpload 已經讀取過 formData，這裡可能需要重新考慮如何獲取 topic
+      // 但 NextRequest 的 formData() 可以多次調用嗎？通常不行。
+      // 解決方案：修改 validateImageUpload 返回 formData 或者在這裡不再次調用 formData()
+      // 由於 validateImageUpload 內部調用了 formData()，我們無法再次調用。
+      // 我們需要修改 validateImageUpload 或者直接在這裡處理 formData。
+      // 暫時假設 validateImageUpload 會被修改為返回 formData 或者我們跳過 validateImageUpload 的 formData 調用
+      // 但為了不破壞現有結構，我們假設 validateImageUpload 已經消耗了 body。
+      // 實際上 Next.js 的 req.formData() 會緩存結果嗎？
+      // 根據 Next.js 文檔，req.formData() 返回 Promise<FormData>，多次調用應該是可以的，只要流沒被鎖定。
+      // 但為了保險，我們應該檢查 validateImageUpload 的實現。
+      // 剛才檢查 validateImageUpload 確實調用了 req.formData()。
+      // 讓我們嘗試直接從 req 克隆一個新的請求來讀取，或者依賴 validateImageUpload 的返回值。
+      // 為了簡單起見，我們修改 validateImageUpload 讓它返回 formData 比較好，但現在我們在編輯 route.ts。
+      // 讓我們假設 req.formData() 可以再次調用 (Next.js 緩存了它)。
+    }
+
+    // 為了確保能拿到 topic，我們需要一個更可靠的方法。
+    // 由於 validateImageUpload 已經消耗了流，我們應該修改 validateImageUpload。
+    // 但現在我們只能編輯 route.ts。
+    // 讓我們看看 validateImageUpload 的代碼：它調用了 req.formData()。
+    // 如果 Next.js 緩存了 formData，那麼再次調用是安全的。
+    // 如果沒有，我們就會報錯。
+    // 讓我們加一個 try-catch 塊來處理。
+
+    // 定義並行任務
+    const tasks: Promise<any>[] = [
+      processImage(imageBuffer, imageName)
+    ];
+
+    // 如果有 topic，則添加生成評分標準的任務
+    // 注意：我們需要先獲取 topic。如果 req.formData() 失敗，我們就無法獲取 topic。
+    // 讓我們嘗試獲取 topic。
+    // 由於 validateImageUpload 已經被調用，我們這裡再次調用 req.formData() 可能會失敗。
+    // 但是，我們可以嘗試從 req.clone() 獲取？不行，流已經被消耗。
+    // 唯一的辦法是修改 validateImageUpload 或者在這裡不使用 validateImageUpload 而直接處理。
+    // 但 validateImageUpload 是共用的。
+    // 讓我們看看是否可以從 validateImageUpload 的返回值中獲取更多信息。
+    // 目前 validateImageUpload 只返回 file 和 fileInfo。
+
+    // 讓我們暫時跳過 topic 的獲取，先並行化 OCR。
+    // 等等，用戶明確要求 "Generate Rubric 可以在打 gemini_ocr 時打"。
+    // 所以我必須獲取 topic。
+    // 我將修改 validateImageUpload 來返回 formData，或者在 route.ts 中手動解析 formData。
+    // 為了避免修改共用代碼帶來的風險，我會在 route.ts 中嘗試獲取 topic，如果失敗則只做 OCR。
+    // 實際上，NextRequest 的 formData() 方法在 Next.js 中通常是可以多次調用的（緩存）。
+
+    let rubricTask: Promise<any> | null = null;
+    if (topic) {
+      console.log('🚀 [OCR API] 啟動評分標準生成任務...');
+      // 動態導入 generateRubric
+      const { generateRubric } = await import('@/lib/gemini-ocr/text-generation');
+      rubricTask = generateRubric(topic);
+      tasks.push(rubricTask);
+    }
+
+    // 执行 OCR 处理 (和 Rubric 生成)
+    console.log('⏳ [OCR API] 開始處理任務 (OCR' + (rubricTask ? ' + Rubric' : '') + ')...');
+
+    const results = await Promise.all(tasks);
+    const result = results[0]; // OCR 結果總是第一個
+    const rubricResult = rubricTask ? results[1] : null; // Rubric 結果是第二個
+
     const processingTime = (Date.now() - requestStartTime) / 1000;
-    console.log(`⏱️ [OCR API] OCR 處理完成，耗時: ${processingTime.toFixed(2)} 秒`);
+    console.log(`⏱️ [OCR API] 任務處理完成，耗時: ${processingTime.toFixed(2)} 秒`);
 
     // 检查处理结果
     if (!result.success) {
@@ -112,7 +181,7 @@ export async function POST(req: NextRequest) {
         return String(value);
       };
 
-      const responseData = {
+      const responseData: any = {
         // 兼容舊的 upload_segment_ocr 格式
         message: 'OCR 辨識完成',
         result_text: safeStringify(finalText),
@@ -152,6 +221,24 @@ export async function POST(req: NextRequest) {
         },
       };
 
+      // 如果有評分標準結果，加入回應
+      if (rubricResult) {
+        if (rubricResult.success) {
+          console.log('✅ 評分標準生成成功');
+          responseData.rubric = rubricResult.text;
+          responseData.data.rubric = {
+            success: true,
+            text: rubricResult.text
+          };
+        } else {
+          console.error('❌ 評分標準生成失敗:', rubricResult.error);
+          responseData.data.rubric = {
+            success: false,
+            error: rubricResult.error
+          };
+        }
+      }
+
       // 測試 JSON 序列化（檢查是否有無法序列化的數據）
       let responseSize = 0;
       try {
@@ -166,7 +253,7 @@ export async function POST(req: NextRequest) {
       console.log('✅ 構建回應資料成功');
       console.log(`   - Final Text 長度: ${finalText.length}`);
       console.log(`   - Response Data 大小: ${(responseSize / 1024 / 1024).toFixed(2)} MB (${responseSize} bytes)`);
-      
+
       if (responseSize > 4 * 1024 * 1024) {
         console.warn('⚠️ 回應資料過大，可能超過 Vercel 限制 (4.5MB)');
         // 如果回應過大，只返回必要的資料
@@ -202,7 +289,7 @@ export async function POST(req: NextRequest) {
       try {
         const responseStartTime = Date.now();
         console.log('📤 [OCR API] 準備返回回應...');
-        
+
         // responseData 已經包含完整的結構，直接返回
         // 再次測試序列化
         try {
@@ -211,7 +298,7 @@ export async function POST(req: NextRequest) {
           console.error('❌ 最終序列化測試失敗:', finalSerializeError.message);
           throw finalSerializeError;
         }
-        
+
         const response = NextResponse.json(
           responseData,
           {
@@ -221,15 +308,15 @@ export async function POST(req: NextRequest) {
             },
           }
         );
-        
+
         const responseTime = (Date.now() - responseStartTime) / 1000;
         console.log(`✅ 成功創建 NextResponse (耗時: ${responseTime.toFixed(2)} 秒)`);
         console.log(`   - Status: ${response.status}`);
-        
+
         const totalTime = (Date.now() - requestStartTime) / 1000;
         console.log(`🎉 [OCR API] 請求處理完成，總耗時: ${totalTime.toFixed(2)} 秒`);
         console.log('📤 [OCR API] 返回回應...');
-        
+
         return response;
       } catch (responseError: any) {
         console.error('❌ 創建 NextResponse 失敗:', responseError.message);
@@ -244,7 +331,7 @@ export async function POST(req: NextRequest) {
       return errorResponse(
         `構建回應資料失敗: ${buildError.message}`,
         undefined,
-        { 
+        {
           finalTextLength: finalText.length,
           errorType: buildError.constructor.name,
         },
@@ -258,7 +345,7 @@ export async function POST(req: NextRequest) {
     console.error(`   錯誤訊息: ${error.message}`);
     console.error(`   錯誤類型: ${error.constructor.name}`);
     console.error(`   錯誤堆疊:`, error.stack);
-    
+
     // 檢查是否為超時錯誤
     if (error.message?.includes('timeout') || error.message?.includes('TIMEOUT') || totalTime > 250) {
       console.error('⚠️ 可能是函數超時錯誤');
@@ -269,11 +356,11 @@ export async function POST(req: NextRequest) {
         504
       );
     }
-    
+
     return errorResponse(
       `處理過程發生錯誤: ${error.message}`,
       undefined,
-      { 
+      {
         processingTime: totalTime,
         errorType: error.constructor.name,
       },

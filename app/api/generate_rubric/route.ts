@@ -71,12 +71,9 @@ export async function POST(req: NextRequest) {
       return errorResponse('topic 內容為空', undefined, undefined, 400);
     }
 
-    // 使用 Gemini 生成评分标准
-    const systemPrompt = getGradingExpertSystemPrompt();
-    const userPrompt = `請為以下題目制定詳細的評分標準：\n\n題目: ${topic}`;
-
-    // 呼叫 Gemini 模型
-    const result = await generateText(systemPrompt, userPrompt, 0.7);
+    // 使用共用的 generateRubric 函數
+    const { generateRubric } = await import('@/lib/gemini-ocr/text-generation');
+    const result = await generateRubric(topic);
 
     if (!result.success || !result.text) {
       return errorResponse(
