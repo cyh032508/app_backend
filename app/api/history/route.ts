@@ -180,12 +180,32 @@ import { prisma } from '@/lib/db/prisma';
  *                                 type: string
  *                               feedback_json:
  *                                 type: object
+ *                                 nullable: true
+ *                               scoring_method:
+ *                                 type: string
+ *                                 nullable: true
+ *                                 description: 评分方法（"rank-then-score" 或 "traditional"）
+ *                               rank_position:
+ *                                 type: integer
+ *                                 nullable: true
+ *                                 description: 排名位置 (1-50)
+ *                               percentile:
+ *                                 type: integer
+ *                                 nullable: true
+ *                                 description: 百分位 (0-100)
+ *                               dimension_feedbacks:
+ *                                 type: object
+ *                                 nullable: true
+ *                                 description: 五個維度的評語
  *                               grammar_analysis:
  *                                 type: object
+ *                                 nullable: true
  *                               vocabulary_usage:
  *                                 type: object
+ *                                 nullable: true
  *                               structure_issues:
  *                                 type: object
+ *                                 nullable: true
  *                               created_at:
  *                                 type: string
  *                                 format: date-time
@@ -242,57 +262,91 @@ export async function POST(req: NextRequest) {
       return errorResponse('grade_result 必须是一个对象', undefined, undefined, 400);
     }
 
+    // 验证并清理输入数据
+    const trimmedTopic = topic?.trim() || '';
+    const trimmedContent = content?.trim() || '';
+    const trimmedRubric = rubric?.trim() || '';
+
     // 1. 保存作文
+    // 根据 schema，title, content, ocr_raw_text, image_path 都是可选的 String?
+    // 如果为空字符串，转换为 null 或保留空字符串都可以，但为了数据一致性，空字符串转换为 null
     const essay = await createEssay({
       user_id: userId,
-      title: topic.trim(),
-      content: content.trim(),
-      ocr_raw_text: content.trim(), // 使用 content 作为 OCR 原始文本
-      image_path: image_uri || null, // 保存图片 URI（如果是本地 URI，后续可能需要上传到云存储）
+      title: trimmedTopic || null,
+      content: trimmedContent || null,
+      ocr_raw_text: trimmedContent || null, // 使用 content 作为 OCR 原始文本
+      image_path: image_uri?.trim() || null, // 保存图片 URI（如果是本地 URI，后续可能需要上传到云存储）
     });
 
     // 2. 处理评分标准（Rubric）
-    // 尝试根据 rubric 文本查找或创建评分标准
-    // 这里简化处理：使用 rubric 文本的前 50 个字符作为 name，如果找不到则创建新的
-    const rubricName = rubric.trim().substring(0, 50);
+    // 根据 schema，name 和 title 是必填的 String，criteria_json 是必填的 Json
+    // 如果 rubric 为空，使用默认值
+    if (!trimmedRubric) {
+      return errorResponse('rubric 不能为空', undefined, undefined, 400);
+    }
+
+    // 生成唯一的 rubric name（使用前50个字符，如果太短则使用完整文本）
+    const rubricName = trimmedRubric.length > 50 
+      ? trimmedRubric.substring(0, 50) 
+      : trimmedRubric;
+    
+    // 生成 title（使用前100个字符，如果太短则使用完整文本）
+    const rubricTitle = trimmedRubric.length > 100 
+      ? trimmedRubric.substring(0, 100) 
+      : trimmedRubric || '自定义评分标准';
+
     let rubricRecord = await findRubricByName(rubricName);
     
     if (!rubricRecord) {
       // 创建新的评分标准
+      // criteria_json 必须是有效的 JSON 对象，不能为 null
       rubricRecord = await createRubric({
         name: rubricName,
-        title: rubric.trim().substring(0, 100) || '自定义评分标准',
-        description: rubric.trim(),
-        criteria_json: { raw_text: rubric.trim() },
+        title: rubricTitle,
+        description: trimmedRubric, // description 是可选的 String?
+        criteria_json: { raw_text: trimmedRubric }, // 必填的 Json 类型
       });
     }
 
     // 3. 保存评分结果
-    // 提取 grade_result 中的字段
+    // 根据 schema，total_score 是必填的 String
+    // feedback_json, grammar_analysis, vocabulary_usage, structure_issues 都是可选的 Json?
     const totalScore = grade_result.total_score || grade_result.score || 'N/A';
     
     // 构建 feedback_json，包含所有 grade_result 中的字段
-    const feedbackJson: any = {};
+    // 始终保存完整的 grade_result，确保数据完整性
+    const feedbackJson: any = {
+      full_grade_result: grade_result, // 始终保存完整的 grade_result
+    };
+    
+    // 添加其他字段（如果存在）
     if (grade_result.feedback) feedbackJson.feedback = grade_result.feedback;
     if (grade_result.detailed_feedback) feedbackJson.detailed_feedback = grade_result.detailed_feedback;
     if (grade_result.strengths) feedbackJson.strengths = grade_result.strengths;
     if (grade_result.improvements) feedbackJson.improvements = grade_result.improvements;
     if (grade_result.areas_for_improvement) feedbackJson.areas_for_improvement = grade_result.areas_for_improvement;
-    
-    // 保存完整的 grade_result 到 feedback_json，确保数据完整性
-    feedbackJson.full_grade_result = grade_result;
 
-    const score = await createScore({
+    // 准备 createScore 的数据
+    const scoreData: any = {
       essay_id: essay.id,
       user_id: userId,
       rubric_id: rubricRecord.id,
-      total_score: String(totalScore),
-      feedback_json: feedbackJson,
-      // 如果 grade_result 中有其他分析字段，也可以保存
-      grammar_analysis: grade_result.grammar_analysis || null,
-      vocabulary_usage: grade_result.vocabulary_usage || null,
-      structure_issues: grade_result.structure_issues || null,
-    });
+      total_score: String(totalScore), // 必填字段
+      feedback_json: feedbackJson, // 始终保存 feedback_json（至少包含 full_grade_result）
+    };
+
+    // 只有当这些字段存在时才添加
+    if (grade_result.grammar_analysis) {
+      scoreData.grammar_analysis = grade_result.grammar_analysis;
+    }
+    if (grade_result.vocabulary_usage) {
+      scoreData.vocabulary_usage = grade_result.vocabulary_usage;
+    }
+    if (grade_result.structure_issues) {
+      scoreData.structure_issues = grade_result.structure_issues;
+    }
+
+    const score = await createScore(scoreData);
 
     // 返回成功响应
     return successResponse(
@@ -358,20 +412,27 @@ export async function GET(req: NextRequest) {
         return {
           essay: {
             id: essay.id,
-            title: essay.title,
-            content: essay.content,
-            ocr_raw_text: essay.ocr_raw_text,
-            image_path: essay.image_path,
+            title: essay.title || null,
+            content: essay.content || null,
+            ocr_raw_text: essay.ocr_raw_text || null,
+            image_path: essay.image_path || null,
             created_at: essay.created_at.toISOString(),
           },
           score: score
             ? {
                 id: score.id,
                 total_score: score.total_score,
-                feedback_json: score.feedback_json,
-                grammar_analysis: score.grammar_analysis,
-                vocabulary_usage: score.vocabulary_usage,
-                structure_issues: score.structure_issues,
+                feedback_json: score.feedback_json || null,
+                // 新增字段 - rank-then-score 相關
+                scoring_method: score.scoring_method || null,
+                rank_position: score.rank_position || null,
+                percentile: score.percentile || null,
+                // 新增字段 - 五維度評語
+                dimension_feedbacks: score.dimension_feedbacks || null,
+                // 保留字段（未來使用）
+                grammar_analysis: score.grammar_analysis || null,
+                vocabulary_usage: score.vocabulary_usage || null,
+                structure_issues: score.structure_issues || null,
                 created_at: score.created_at.toISOString(),
               }
             : null,
@@ -380,7 +441,7 @@ export async function GET(req: NextRequest) {
                 id: rubric.id,
                 name: rubric.name,
                 title: rubric.title,
-                description: rubric.description,
+                description: rubric.description || null,
               }
             : null,
         };
