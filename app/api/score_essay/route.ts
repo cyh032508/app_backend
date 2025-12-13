@@ -314,17 +314,20 @@ export async function POST(req: NextRequest) {
 
     console.log('\n🎉 [Rank-then-Score] 評分流程完成！\n');
 
-    return successResponse({
-      score: score,
-      rank: rank,
-      totalSamples: sampleCount,
-      percentile: percentile,
-      reasoning: reasoning,
+    // 構建符合前端接口定義的響應格式
+    const responseData = {
+      score: score, // string: 總分 (e.g., "18/25")
+      rank: rank, // number: 在 N 篇中的排名
+      totalSamples: sampleCount, // number: 參考文章總數
+      percentile: percentile, // number: 百分位
+      reasoning: reasoning, // string: 排名理由
       scoreDetails: {
-        method: 'rank-then-score',
-        generatedSamples: samples.length,
+        method: 'rank-then-score', // string: 評分方法
+        generatedSamples: samples.length, // number: 生成的樣本數
       },
-    });
+    };
+
+    return successResponse(responseData);
   } catch (error: any) {
     console.error('❌ [Rank-then-Score] 處理錯誤:', error.message);
     return errorResponse(error.message || '處理過程發生錯誤', undefined, undefined, 500);
