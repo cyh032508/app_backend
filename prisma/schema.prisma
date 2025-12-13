@@ -13,109 +13,100 @@ datasource db {
   directUrl = env("DIRECT_URL")     // Migrate / db push (direct 5432)
 }
 
-/*
--------------------------------------
-User
-一個使用者可以有多篇作文、多筆成績
--------------------------------------
-*/
+// -------------------------------------
+// User
+// 一個使用者可以有多篇作文、多筆成績
+// -------------------------------------
 model User {
-  id               String   @id @default(uuid())
-  email            String   @unique
-  hashed_password  String
-  username         String?
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
+  id              String   @id @default(uuid())
+  email           String   @unique
+  hashed_password String
+  username        String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
 
-  essays           Essays[]
-  scores           Scores[]
+  essays Essays[]
+  scores Scores[]
 
   @@map("USER")
 }
 
-/*
--------------------------------------
-Essays
-一篇作文一定屬於一個使用者
-刪除使用者時，作文一併刪除
--------------------------------------
-*/
+// -------------------------------------
+// Essays
+// 一篇作文一定屬於一個使用者
+// 刪除使用者時，作文一併刪除
+// -------------------------------------
 model Essays {
-  id             String    @id @default(uuid())
-  user_id        String
-  title          String?
-  content        String?
-  ocr_raw_text   String?
-  image_path     String?
-  created_at     DateTime  @default(now())
-  updated_at     DateTime  @updatedAt
-  deleted_at     DateTime?
+  id           String    @id @default(uuid())
+  user_id      String
+  title        String?
+  content      String?
+  ocr_raw_text String?
+  image_path   String?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  deleted_at   DateTime?
 
-  user           User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  scores         Scores[]
+  user   User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  scores Scores[]
 
   @@index([user_id])
   @@map("ESSAYS")
 }
 
-/*
--------------------------------------
-Rubrics
-評分標準（制度）
-不允許 cascade 刪除，避免誤刪歷史成績
--------------------------------------
-*/
+// -------------------------------------
+// Rubrics
+// 評分標準（制度）
+// 不允許 cascade 刪除，避免誤刪歷史成績
+// -------------------------------------
 model Rubrics {
-  id              String    @id @default(uuid())
-  name            String
-  title           String
-  description     String?
-  criteria_json   Json
-  created_at      DateTime  @default(now())
-  updated_at      DateTime? @updatedAt
+  id            String    @id @default(uuid())
+  name          String
+  title         String
+  description   String?
+  criteria_json Json
+  created_at    DateTime  @default(now())
+  updated_at    DateTime? @updatedAt
 
-  scores          Scores[]
+  scores Scores[]
 
   @@map("RUBRICS")
 }
 
-/*
--------------------------------------
-Scores
-一筆成績：
-- 屬於一篇作文
-- 屬於一個使用者
-- 使用一套 Rubric
--------------------------------------
-*/
+// -------------------------------------
+// Scores
+// 一筆成績：
+// - 屬於一篇作文
+// - 屬於一個使用者
+// - 使用一套 Rubric
+// -------------------------------------
 model Scores {
-  id                 String    @id @default(uuid())
+  id        String @id @default(uuid())
+  essay_id  String
+  user_id   String
+  rubric_id String
 
-  essay_id           String
-  user_id            String
-  rubric_id          String
-
-  total_score        String
-  feedback_json      Json?
+  total_score   String
+  feedback_json Json?
 
   // rank-then-score 相關
-  scoring_method     String?   // "rank-then-score" | "traditional"
-  rank_position      Int?
-  percentile         Int?
+  scoring_method String? // "rank-then-score" | "traditional"
+  rank_position  Int?
+  percentile     Int?
 
   // 五維度評語
   dimension_feedbacks Json?
 
   // 保留分析欄位
-  grammar_analysis    Json?
-  vocabulary_usage   Json?
-  structure_issues   Json?
+  grammar_analysis Json?
+  vocabulary_usage Json?
+  structure_issues Json?
 
-  created_at         DateTime  @default(now())
+  created_at DateTime @default(now())
 
-  essay              Essays    @relation(fields: [essay_id], references: [id], onDelete: Cascade)
-  user               User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  rubric             Rubrics   @relation(fields: [rubric_id], references: [id], onDelete: Restrict)
+  essay  Essays  @relation(fields: [essay_id], references: [id], onDelete: Cascade)
+  user   User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  rubric Rubrics @relation(fields: [rubric_id], references: [id], onDelete: Restrict)
 
   @@index([essay_id])
   @@index([user_id])
