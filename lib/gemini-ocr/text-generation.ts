@@ -37,16 +37,16 @@ function initializeVertexAI() {
     if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
       try {
         const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
-        
+
         // 驗證必要的欄位
         if (!credentials.type || !credentials.project_id || !credentials.private_key || !credentials.client_email) {
           console.error('❌ 服務帳號憑證缺少必要欄位');
           throw new Error('服務帳號憑證缺少必要欄位');
         }
-        
+
         // 這是修復 500 錯誤的關鍵：確保正確處理 private_key 的換行符號
         const privateKey = credentials.private_key.replace(/\\n/g, '\n');
-        
+
         // 使用 googleAuthOptions 來設置認證（這是正確的方式）
         vertexAIConfig.googleAuthOptions = {
           credentials: {
@@ -54,7 +54,7 @@ function initializeVertexAI() {
             private_key: privateKey, // 使用處理過的 key
           },
         };
-        
+
         console.log('✅ 使用 GOOGLE_APPLICATION_CREDENTIALS_JSON 進行 Vertex AI 認證');
         console.log(`   - Project ID: ${credentials.project_id}`);
         console.log(`   - Client Email: ${credentials.client_email}`);
@@ -69,18 +69,18 @@ function initializeVertexAI() {
       try {
         // 這是修復 500 錯誤的關鍵：確保正確處理 private_key 的換行符號
         const privateKey = process.env.PRIVATE_KEY.replace(/\\n/g, '\n');
-        
+
         if (!privateKey) {
           throw new Error('PRIVATE_KEY 環境變數為空');
         }
-        
+
         vertexAIConfig.googleAuthOptions = {
           credentials: {
             client_email: process.env.CLIENT_EMAIL,
             private_key: privateKey, // 使用處理過的 key
           },
         };
-        
+
         console.log('✅ 使用拆分環境變數 (CLIENT_EMAIL + PRIVATE_KEY) 進行 Vertex AI 認證');
         console.log(`   - Client Email: ${process.env.CLIENT_EMAIL}`);
         console.log(`   - Private Key 長度: ${privateKey.length}`);
@@ -106,7 +106,7 @@ function initializeVertexAI() {
     console.log(`   - Project: ${vertexAIConfig.project}`);
     console.log(`   - Location: ${vertexAIConfig.location}`);
     console.log(`   - Has googleAuthOptions: ${!!vertexAIConfig.googleAuthOptions}`);
-    
+
     try {
       vertexAI = new VertexAI(vertexAIConfig);
       console.log('✅ VertexAI 初始化成功 (Text Generation)');
@@ -202,6 +202,28 @@ export async function generateText(
       success: true,
       text: generatedText,
     };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.message || String(error),
+    };
+  }
+}
+
+/**
+ * 根據題目生成評分標準
+ * @param topic 作文題目
+ * @returns 生成的評分標準
+ */
+export async function generateRubric(topic: string): Promise<TextGenerationResult> {
+  try {
+    // 動態導入以避免循環依賴
+    const { getGradingExpertSystemPrompt } = await import('@/lib/prompts/system-prompts');
+
+    const systemPrompt = getGradingExpertSystemPrompt();
+    const userPrompt = `請為以下題目制定詳細的評分標準：\n\n題目: ${topic}`;
+
+    return await generateText(systemPrompt, userPrompt, 0.7);
   } catch (error: any) {
     return {
       success: false,
