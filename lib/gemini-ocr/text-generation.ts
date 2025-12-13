@@ -117,7 +117,7 @@ function initializeVertexAI() {
     model = vertexAI.preview.getGenerativeModel({
       model: MODEL_NAME,
       generationConfig: {
-        maxOutputTokens: 8192,
+        maxOutputTokens: 65535, // Gemini 2.5 Pro 最大輸出限制
         temperature: 0.7, // 对于文本生成，使用稍高的温度
         topP: 0.9,
       },
@@ -155,18 +155,22 @@ export interface TextGenerationResult {
  * @param systemPrompt 系统提示词
  * @param userPrompt 用户提示词
  * @param temperature 温度参数（可选，默认 0.7）
+ * @param maxOutputTokens 最大輸出 tokens（可選，默認 65535 = Gemini 2.5 Pro 最大值）
  * @returns 生成的文本结果
  */
 export async function generateText(
   systemPrompt: string,
   userPrompt: string,
-  temperature: number = 0.7
+  temperature: number = 0.7,
+  maxOutputTokens: number = 65535
 ): Promise<TextGenerationResult> {
   try {
     const model = initializeVertexAI();
 
     // 组合系统提示词和用户提示词
     const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
+
+    console.log(`🔧 [Text Generation] 配置：temperature=${temperature}, maxOutputTokens=${maxOutputTokens}`);
 
     // 发送请求
     const result = await model.generateContent({
@@ -181,7 +185,7 @@ export async function generateText(
         },
       ],
       generationConfig: {
-        maxOutputTokens: 8192,
+        maxOutputTokens: Math.min(maxOutputTokens, 65535), // Gemini 2.5 Pro 最大值
         temperature,
         topP: 0.9,
       },
