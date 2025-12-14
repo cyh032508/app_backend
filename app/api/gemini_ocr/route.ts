@@ -74,48 +74,27 @@ export async function POST(req: NextRequest) {
       // 使用驗證時已經解析的 formData
       const formData = (validation as any).formData;
       if (formData) {
+        console.log('✅ [OCR API] 成功獲取 FormData');
         topic = (formData.get('topic') as string) || '';
         if (topic) {
           console.log(`📝 [OCR API] 收到題目: ${topic.substring(0, 20)}...`);
         } else {
           console.log('⚠️ [OCR API] FormData 中沒有找到 topic 欄位');
+          // 列出所有欄位名稱以便除錯
+          const keys = Array.from(formData.keys());
+          console.log('   FormData 欄位:', keys);
         }
       } else {
-        console.warn('⚠️ [OCR API] 無法獲取 FormData');
+        console.warn('⚠️ [OCR API] 無法獲取 FormData (validation.formData 為空)');
       }
     } catch (e: any) {
       console.error('❌ [OCR API] 獲取 topic 失敗:', e.message);
     }
 
-    // 為了確保能拿到 topic，我們需要一個更可靠的方法。
-    // 由於 validateImageUpload 已經消耗了流，我們應該修改 validateImageUpload。
-    // 但現在我們只能編輯 route.ts。
-    // 讓我們看看 validateImageUpload 的代碼：它調用了 req.formData()。
-    // 如果 Next.js 緩存了 formData，那麼再次調用是安全的。
-    // 如果沒有，我們就會報錯。
-    // 讓我們加一個 try-catch 塊來處理。
-
     // 定義並行任務
     const tasks: Promise<any>[] = [
       processImage(imageBuffer, imageName)
     ];
-
-    // 如果有 topic，則添加生成評分標準的任務
-    // 注意：我們需要先獲取 topic。如果 req.formData() 失敗，我們就無法獲取 topic。
-    // 讓我們嘗試獲取 topic。
-    // 由於 validateImageUpload 已經被調用，我們這裡再次調用 req.formData() 可能會失敗。
-    // 但是，我們可以嘗試從 req.clone() 獲取？不行，流已經被消耗。
-    // 唯一的辦法是修改 validateImageUpload 或者在這裡不使用 validateImageUpload 而直接處理。
-    // 但 validateImageUpload 是共用的。
-    // 讓我們看看是否可以從 validateImageUpload 的返回值中獲取更多信息。
-    // 目前 validateImageUpload 只返回 file 和 fileInfo。
-
-    // 讓我們暫時跳過 topic 的獲取，先並行化 OCR。
-    // 等等，用戶明確要求 "Generate Rubric 可以在打 gemini_ocr 時打"。
-    // 所以我必須獲取 topic。
-    // 我將修改 validateImageUpload 來返回 formData，或者在 route.ts 中手動解析 formData。
-    // 為了避免修改共用代碼帶來的風險，我會在 route.ts 中嘗試獲取 topic，如果失敗則只做 OCR。
-    // 實際上，NextRequest 的 formData() 方法在 Next.js 中通常是可以多次調用的（緩存）。
 
     let rubricTask: Promise<any> | null = null;
     if (topic) {
@@ -124,6 +103,8 @@ export async function POST(req: NextRequest) {
       const { generateRubric } = await import('@/lib/gemini-ocr/text-generation');
       rubricTask = generateRubric(topic);
       tasks.push(rubricTask);
+    } else {
+      console.log('ℹ️ [OCR API] 未提供題目，跳過評分標準生成');
     }
 
     // 执行 OCR 处理 (和 Rubric 生成)
@@ -133,17 +114,18 @@ export async function POST(req: NextRequest) {
     const result = results[0]; // OCR 結果總是第一個
     const rubricResult = rubricTask ? results[1] : null; // Rubric 結果是第二個
 
-    const processingTime = (Date.now() - requestStartTime) / 1000;
-    console.log(`⏱️ [OCR API] 任務處理完成，耗時: ${processingTime.toFixed(2)} 秒`);
-
-    // 检查处理结果
-    if (!result.success) {
-      return errorResponse(
-        result.error || 'OCR 處理失敗',
-        undefined,
-        result,
-        500
-      );
+    if (rubricTask) {
+      console.log('🏁 [OCR API] 評分標準任務完成');
+      if (rubricResult) {
+        console.log(`   - Success: ${rubricResult.success}`);
+        if (rubricResult.success) {
+          console.log(`   - Length: ${rubricResult.text?.length}`);
+        } else {
+          console.error(`   - Error: ${rubricResult.error}`);
+        }
+      } else {
+        console.error('   - Result is null/undefined');
+      }
     }
 
     // 決定最終使用的文字結果（優先順序：優化結果 > 原始 OCR > 二值化 OCR）
