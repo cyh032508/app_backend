@@ -71,27 +71,20 @@ export async function POST(req: NextRequest) {
     // 嘗試從 formData 中獲取 topic
     let topic = '';
     try {
-      const formData = await req.formData();
-      topic = (formData.get('topic') as string) || '';
-      if (topic) {
-        console.log(`📝 [OCR API] 收到題目: ${topic.substring(0, 20)}...`);
+      // 使用驗證時已經解析的 formData
+      const formData = (validation as any).formData;
+      if (formData) {
+        topic = (formData.get('topic') as string) || '';
+        if (topic) {
+          console.log(`📝 [OCR API] 收到題目: ${topic.substring(0, 20)}...`);
+        } else {
+          console.log('⚠️ [OCR API] FormData 中沒有找到 topic 欄位');
+        }
+      } else {
+        console.warn('⚠️ [OCR API] 無法獲取 FormData');
       }
-    } catch (e) {
-      // 忽略錯誤，可能是因為已經讀取過 formData 或者請求格式不對
-      // 注意：validateImageUpload 已經讀取過 formData，這裡可能需要重新考慮如何獲取 topic
-      // 但 NextRequest 的 formData() 可以多次調用嗎？通常不行。
-      // 解決方案：修改 validateImageUpload 返回 formData 或者在這裡不再次調用 formData()
-      // 由於 validateImageUpload 內部調用了 formData()，我們無法再次調用。
-      // 我們需要修改 validateImageUpload 或者直接在這裡處理 formData。
-      // 暫時假設 validateImageUpload 會被修改為返回 formData 或者我們跳過 validateImageUpload 的 formData 調用
-      // 但為了不破壞現有結構，我們假設 validateImageUpload 已經消耗了 body。
-      // 實際上 Next.js 的 req.formData() 會緩存結果嗎？
-      // 根據 Next.js 文檔，req.formData() 返回 Promise<FormData>，多次調用應該是可以的，只要流沒被鎖定。
-      // 但為了保險，我們應該檢查 validateImageUpload 的實現。
-      // 剛才檢查 validateImageUpload 確實調用了 req.formData()。
-      // 讓我們嘗試直接從 req 克隆一個新的請求來讀取，或者依賴 validateImageUpload 的返回值。
-      // 為了簡單起見，我們修改 validateImageUpload 讓它返回 formData 比較好，但現在我們在編輯 route.ts。
-      // 讓我們假設 req.formData() 可以再次調用 (Next.js 緩存了它)。
+    } catch (e: any) {
+      console.error('❌ [OCR API] 獲取 topic 失敗:', e.message);
     }
 
     // 為了確保能拿到 topic，我們需要一個更可靠的方法。
@@ -272,6 +265,15 @@ export async function POST(req: NextRequest) {
             total_time: result.total_time || 0,
           },
         };
+
+        // 如果有評分標準結果，也加入精簡回應
+        if (rubricResult && rubricResult.success) {
+          (compactResponseData as any).rubric = rubricResult.text;
+          (compactResponseData as any).data.rubric = {
+            success: true,
+            text: rubricResult.text
+          };
+        }
         const compactSize = JSON.stringify(compactResponseData).length;
         console.log(`   - 使用精簡回應，大小: ${(compactSize / 1024 / 1024).toFixed(2)} MB`);
         return NextResponse.json(

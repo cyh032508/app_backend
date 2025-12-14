@@ -45,6 +45,7 @@ export async function validateImageUpload(req: NextRequest) {
     isValid: true,
     file: imageFile,
     fileInfo: await getFileInfo(imageFile),
+    formData: formData, // Return formData for further use
   };
 }
 
