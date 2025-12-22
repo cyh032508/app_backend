@@ -306,6 +306,19 @@ export async function POST(req: NextRequest) {
         description: trimmedRubric, // description 是可选的 String?
         criteria_json: { raw_text: trimmedRubric }, // 必填的 Json 类型
       });
+    } else {
+      // 如果已存在，更新 description 以确保保存完整内容
+      if (!rubricRecord.description || rubricRecord.description.length < trimmedRubric.length) {
+        // 更新 description 为更完整的内容
+        rubricRecord = await prisma.rubrics.update({
+          where: { id: rubricRecord.id },
+          data: { 
+            description: trimmedRubric,
+            // 同时更新 title 如果新的更长
+            title: trimmedRubric.length > 100 ? trimmedRubric.substring(0, 100) : trimmedRubric
+          }
+        });
+      }
     }
 
     // 3. 保存评分结果
