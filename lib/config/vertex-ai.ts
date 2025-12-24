@@ -29,7 +29,7 @@ export const VERTEX_AI_CONFIG = {
   // 必需的环境变量（缺少会抛出错误）
   projectId: getRequiredEnv('GCP_PROJECT_ID'),
   location: getRequiredEnv('GCP_LOCATION'),
-  
+
   // 可选的环境变量（有默认值）
   model: getOptionalEnv('GEMINI_MODEL', 'gemini-2.5-pro'),
 } as const;
@@ -37,15 +37,15 @@ export const VERTEX_AI_CONFIG = {
 // 验证配置是否完整（用于运行时检查）
 export function validateVertexAIConfig(): { isValid: boolean; missing: string[] } {
   const missing: string[] = [];
-  
+
   if (!process.env.GCP_PROJECT_ID) {
     missing.push('GCP_PROJECT_ID');
   }
-  
+
   if (!process.env.GCP_LOCATION) {
     missing.push('GCP_LOCATION');
   }
-  
+
   return {
     isValid: missing.length === 0,
     missing,
