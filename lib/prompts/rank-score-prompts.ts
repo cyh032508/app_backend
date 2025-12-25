@@ -5,10 +5,10 @@
 
 /**
  * 生成參考文章樣本的系統提示詞
- * @param count 要生成的文章數量（默認 25）
+ * @param count 要生成的文章數量（默認 50）
  * @returns 系統提示詞字串
  */
-export function getGenerateSamplesPrompt(count: number = 25): string {
+export function getGenerateSamplesPrompt(count: number = 50): string {
   return `你是一位資深的國文教師。請根據提供的題目和評分標準，生成 ${count} 篇簡短的作文範例。
   
   重要：由於數量較多，每篇文章請保持精簡，重點在於體現該分數段的特徵，而非長篇大論。
@@ -76,7 +76,7 @@ export function getRankSamplesPrompt(): string {
 export function getInsertRankPrompt(): string {
   return `你是一位資深的國文評分專家。現在有一篇實際的學生作文需要評分。
 
-已有 25 篇已排序的參考文章（從最差到最好）。請將這篇實際作文插入到這個排序中，確定它應該排在第幾名。
+已有 50 篇已排序的參考文章（從最差到最好）。請將這篇實際作文插入到這個排序中，確定它應該排在第幾名。
 
 要求：
 1. 根據評分標準進行比較
@@ -86,7 +86,7 @@ export function getInsertRankPrompt(): string {
    - 組織結構：文章結構、段落安排、邏輯連貫性
    - 格式及錯別字：格式規範、錯別字、標點符號使用
 3. 確定這篇作文的質量水平
-4. 給出它在 25 篇中的排名位置（1 = 25 = 最好）
+4. 給出它在 50 篇中的排名位置（1 = 50 = 最好）
 5. 簡要說明排名理由
 
 請以純 JSON 格式回應，不要包含任何 Markdown 標記：
@@ -95,7 +95,7 @@ export function getInsertRankPrompt(): string {
   "reasoning": "簡短說明排名理由（1-2 句話）"
 }
 
-註：rank 值為 1 代表比所有參考文章都差，rank 值為 25 代表比所有參考文章都好。`;
+註：rank 值為 1 代表比所有參考文章都差，rank 值為 50 代表比所有參考文章都好。`;
 }
 
 /**

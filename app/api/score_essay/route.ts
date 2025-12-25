@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
     const topic = data.topic.trim();
     const content = data.content.trim();
     const rubric = data.rubric.trim();
-    const sampleCount = data.sampleCount || 25;
+    const sampleCount = data.sampleCount || 50;
 
     if (!topic || !content || !rubric) {
       return errorResponse('topic、content 或 rubric 內容為空', undefined, undefined, 400);
