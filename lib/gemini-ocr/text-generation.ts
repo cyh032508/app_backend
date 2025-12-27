@@ -57,7 +57,7 @@ function initializeVertexAI() {
 
         console.log('✅ 使用 GOOGLE_APPLICATION_CREDENTIALS_JSON 進行 Vertex AI 認證');
         console.log(`   - Project ID: ${credentials.project_id}`);
-        console.log(`   - Client Email: ${credentials.client_email}`);
+        // 安全：不輸出 Client Email（敏感信息）
         console.log(`   - Private Key 長度: ${privateKey.length}`);
       } catch (error: any) {
         console.error('❌ 無法解析 GOOGLE_APPLICATION_CREDENTIALS_JSON:', error.message);
@@ -82,7 +82,7 @@ function initializeVertexAI() {
         };
 
         console.log('✅ 使用拆分環境變數 (CLIENT_EMAIL + PRIVATE_KEY) 進行 Vertex AI 認證');
-        console.log(`   - Client Email: ${process.env.CLIENT_EMAIL}`);
+        // 安全：不輸出 Client Email（敏感信息）
         console.log(`   - Private Key 長度: ${privateKey.length}`);
       } catch (error: any) {
         console.error('❌ 無法設置拆分環境變數認證:', error.message);
