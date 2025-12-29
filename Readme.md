@@ -1,50 +1,50 @@
 # AI 作文批改系統 Backend
 
-基于 Next.js 14 构建的 AI 作文批改系统后端 API，集成 Gemini AI 提供 OCR 识别、智能评分和评语生成功能。
+基於 Next.js 14 構建的 AI 作文批改系統後端 API，整合 Gemini AI 提供 OCR 識別、智能評分和評語生成功能。
 
-## 技术栈
+## 技術棧
 
 - **框架**: Next.js 14 (App Router)
-- **语言**: TypeScript
-- **AI 服务**: Google Vertex AI (Gemini 2.5 Flash Lite)
-- **数据库**: Supabase PostgreSQL (Prisma ORM)
-- **存储**: Vercel Blob Storage
-- **认证**: JWT
-- **文档**: Swagger/OpenAPI
+- **語言**: TypeScript
+- **AI 服務**: Google Vertex AI (Gemini 2.5 Flash Lite)
+- **資料庫**: Supabase PostgreSQL (Prisma ORM)
+- **儲存**: Vercel Blob Storage
+- **認證**: JWT
+- **文檔**: Swagger/OpenAPI
 
 ## 核心功能
 
-- **OCR 识别**: 支持作文稿纸照片识别，采用原始图片 + 二值化图片交叉比对优化
-- **智能评分**: 
-  - Rank-then-Score: 生成参考文章进行相对排名评分
-  - Direct Grading: 基于评分标准的直接评分
-- **评语生成**: 五维度评语（立意取材、表达与文采、组织结构、格式及错别字、综合表现）
-- **评分标准生成**: 根据题目自动生成详细评分标准
-- **用户系统**: 注册、登录、密码重置、历史记录管理
+- **OCR 識別**: 支援作文稿紙照片識別，採用原始圖片 + 二值化圖片交叉比對優化
+- **智能評分**: 
+  - Rank-then-Score: 生成參考文章進行相對排名評分
+  - Direct Grading: 基於評分標準的直接評分
+- **評語生成**: 五維度評語（立意取材、表達與文采、組織結構、格式及錯別字、綜合表現）
+- **評分標準生成**: 根據題目自動生成詳細評分標準
+- **用戶系統**: 註冊、登入、密碼重置、歷史記錄管理
 
-## 快速开始
+## 快速開始
 
-### 环境要求
+### 環境要求
 
 - Node.js 18+
 - pnpm / npm / yarn
 - Google Cloud Project (Vertex AI)
-- Supabase 项目
-- Vercel 账号 (Blob Storage)
+- Supabase 專案
+- Vercel 帳號 (Blob Storage)
 
-### 安装
+### 安裝
 
 ```bash
-# 安装依赖
+# 安裝依賴
 pnpm install
 
 # 生成 Prisma Client
 pnpm prisma:generate
 ```
 
-### 环境变量配置
+### 環境變數配置
 
-复制 `env.example` 并配置以下环境变量：
+複製 `env.example` 並配置以下環境變數：
 
 ```bash
 cp env.example .env
@@ -60,139 +60,139 @@ GEMINI_MODEL=gemini-2.5-flash-lite
 CLIENT_EMAIL=your-service-account@project.iam.gserviceaccount.com
 PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\n...
 
-# 数据库
+# 資料庫
 DATABASE_URL=postgresql://user:password@host:6543/db?pgbouncer=true
 DIRECT_URL=postgresql://user:password@host:5432/db
 
-# 认证
+# 認證
 JWT_SECRET=your-secret-key-min-32-chars
 JWT_EXPIRES_IN=7d
 
-# 存储
+# 儲存
 BLOB_READ_WRITE_TOKEN=vercel_blob_rw_xxx...
 ```
 
-**认证方式** (三选一):
-1. `GOOGLE_APPLICATION_CREDENTIALS_JSON`: 完整的服务账号 JSON
-2. `CLIENT_EMAIL` + `PRIVATE_KEY`: 拆分环境变量（推荐，避免 Vercel 大小限制）
-3. `GOOGLE_APPLICATION_CREDENTIALS`: 本地文件路径
+**認證方式** (三選一):
+1. `GOOGLE_APPLICATION_CREDENTIALS_JSON`: 完整的服務帳號 JSON
+2. `CLIENT_EMAIL` + `PRIVATE_KEY`: 拆分環境變數（推薦，避免 Vercel 大小限制）
+3. `GOOGLE_APPLICATION_CREDENTIALS`: 本地檔案路徑
 
-### 数据库迁移
+### 資料庫遷移
 
 ```bash
-# 推送 schema 到数据库
+# 推送 schema 到資料庫
 pnpm prisma:push
 
-# 或使用迁移
+# 或使用遷移
 pnpm prisma:migrate
 ```
 
-### 开发
+### 開發
 
 ```bash
-# 启动开发服务器
+# 啟動開發伺服器
 pnpm dev
 ```
 
-访问 `http://localhost:3000/api-docs` 查看 Swagger API 文档。
+訪問 `http://localhost:3000/api-docs` 查看 Swagger API 文檔。
 
-## API 端点
+## API 端點
 
-### 认证
-- `POST /api/auth/register` - 用户注册
-- `POST /api/auth/login` - 用户登录
-- `POST /api/auth/logout` - 用户登出
-- `POST /api/auth/reset-password` - 重置密码
+### 認證
+- `POST /api/auth/register` - 用戶註冊
+- `POST /api/auth/login` - 用戶登入
+- `POST /api/auth/logout` - 用戶登出
+- `POST /api/auth/reset-password` - 重置密碼
 
-### OCR & 处理
-- `POST /api/gemini_ocr` - OCR 识别（支持图片上传）
-- `POST /api/upload_image` - 上传图片到 Blob Storage
+### OCR & 處理
+- `POST /api/gemini_ocr` - OCR 識別（支援圖片上傳）
+- `POST /api/upload_image` - 上傳圖片到 Blob Storage
 
-### 评分 & 评语
-- `POST /api/score_essay` - Rank-then-Score 评分
-- `POST /api/grade_essay` - 直接评分
-- `POST /api/feedback_essay` - 生成五维度评语
-- `POST /api/generate_rubric` - 生成评分标准
+### 評分 & 評語
+- `POST /api/score_essay` - Rank-then-Score 評分
+- `POST /api/grade_essay` - 直接評分
+- `POST /api/feedback_essay` - 生成五維度評語
+- `POST /api/generate_rubric` - 生成評分標準
 
-### 历史记录
-- `POST /api/history` - 保存批改历史
-- `GET /api/history` - 查询历史记录
-- `PATCH /api/history/[id]` - 更新历史记录
+### 歷史記錄
+- `POST /api/history` - 保存批改歷史
+- `GET /api/history` - 查詢歷史記錄
+- `PATCH /api/history/[id]` - 更新歷史記錄
 
-## 项目结构
+## 專案結構
 
 ```
 .
 ├── app/
 │   ├── api/              # API 路由
-│   │   ├── auth/         # 认证相关
-│   │   ├── gemini_ocr/   # OCR 识别
+│   │   ├── auth/         # 認證相關
+│   │   ├── gemini_ocr/   # OCR 識別
 │   │   └── ...
-│   └── api-docs/         # Swagger 文档页面
+│   └── api-docs/         # Swagger 文檔頁面
 ├── lib/
-│   ├── gemini-ocr/       # OCR 核心逻辑
-│   │   ├── ocr.ts        # OCR 识别
+│   ├── gemini-ocr/       # OCR 核心邏輯
+│   │   ├── ocr.ts        # OCR 識別
 │   │   ├── text-generation.ts  # 文本生成
-│   │   └── pipeline.ts   # 处理流程
-│   ├── auth/             # 认证工具
-│   ├── db/               # 数据库配置
-│   └── utils/            # 工具函数
+│   │   └── pipeline.ts   # 處理流程
+│   ├── auth/             # 認證工具
+│   ├── db/               # 資料庫配置
+│   └── utils/            # 工具函數
 ├── prisma/
-│   └── schema.prisma     # 数据库 Schema
-└── public/               # 静态资源
+│   └── schema.prisma     # 資料庫 Schema
+└── public/               # 靜態資源
 ```
 
-## 开发命令
+## 開發命令
 
 ```bash
-# 开发
+# 開發
 pnpm dev
 
-# 构建
+# 構建
 pnpm build
 
-# 启动生产服务器
+# 啟動生產伺服器
 pnpm start
 
 # Prisma
 pnpm prisma:generate      # 生成 Prisma Client
 pnpm prisma:push          # 推送 schema
-pnpm prisma:migrate       # 数据库迁移
-pnpm prisma:studio        # 打开 Prisma Studio
+pnpm prisma:migrate       # 資料庫遷移
+pnpm prisma:studio        # 打開 Prisma Studio
 
-# 代码检查
+# 程式碼檢查
 pnpm lint
 ```
 
 ## 部署
 
-### Vercel (推荐)
+### Vercel (推薦)
 
-1. 连接 GitHub 仓库
-2. 配置环境变量
-3. 部署自动完成
+1. 連接 GitHub 倉庫
+2. 配置環境變數
+3. 部署自動完成
 
-### 环境变量配置
+### 環境變數配置
 
-在 Vercel Dashboard 中设置所有必需的环境变量。注意：
-- `PRIVATE_KEY` 需要保留换行符，使用 `\n` 转义
-- 或使用 `GOOGLE_APPLICATION_CREDENTIALS_JSON`（注意 Vercel 环境变量大小限制）
+在 Vercel Dashboard 中設置所有必需的環境變數。注意：
+- `PRIVATE_KEY` 需要保留換行符，使用 `\n` 轉義
+- 或使用 `GOOGLE_APPLICATION_CREDENTIALS_JSON`（注意 Vercel 環境變數大小限制）
 
-## 安全注意事项
+## 安全注意事項
 
-- ✅ 所有敏感信息通过环境变量管理
-- ✅ `.env` 文件已加入 `.gitignore`
-- ✅ JWT Secret 最小长度 32 字符
-- ✅ 日志不输出敏感信息（Client Email、Private Key 等）
-- ✅ API 错误响应不泄露内部实现细节
+- 所有敏感資訊通過環境變數管理
+- `.env` 檔案已加入 `.gitignore`
+- JWT Secret 最小長度 32 字元
+- 日誌不輸出敏感資訊（Client Email、Private Key 等）
+- API 錯誤響應不洩露內部實現細節
 
-## 性能优化
+## 效能優化
 
-- OCR 处理采用并行任务（原始图片 + 二值化图片）
-- 使用 Supabase 连接池 (`DATABASE_URL`) 优化数据库连接
-- 图片处理使用 Sharp 进行优化
-- API 响应统一格式，便于前端处理
+- OCR 處理採用並行任務（原始圖片 + 二值化圖片）
+- 使用 Supabase 連接池 (`DATABASE_URL`) 優化資料庫連接
+- 圖片處理使用 Sharp 進行優化
+- API 響應統一格式，便於前端處理
 
-## 许可证
+## 授權
 
 Private - All Rights Reserved
