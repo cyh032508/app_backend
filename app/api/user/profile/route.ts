@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { authenticateToken } from '@/lib/middleware/auth';
 import { errorResponse, successResponse } from '@/lib/utils/response-helper';
-import { findUserById, updateUser } from '@/lib/db/user';
+import { findUserById, updateUser, deleteUser } from '@/lib/db/user';
 import { hashPassword, isValidEmail, isValidPassword, isValidUsername } from '@/lib/auth/utils';
 import { validateJsonFields } from '@/lib/middleware/request-validator';
 import { emailExists, usernameExists } from '@/lib/db/user';
@@ -255,5 +255,73 @@ export async function PATCH(req: NextRequest) {
   } catch (error: any) {
     console.error('Error in PATCH /api/user/profile:', error);
     return errorResponse(error.message || '更新用戶資料失敗', undefined, undefined, 500);
+  }
+}
+
+/**
+ * @swagger
+ * /api/user/profile:
+ *   delete:
+ *     summary: 刪除帳號
+ *     description: 刪除當前登入用戶的帳號及其所有相關數據（作文、成績等）
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 刪除成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "操作成功"
+ *                 data:
+ *                   type: null
+ *       401:
+ *         description: 認證失敗
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: 用戶不存在
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+export async function DELETE(req: NextRequest) {
+  try {
+    // 驗證用戶身份
+    const authResult = authenticateToken(req);
+    if (!authResult.isValid) {
+      return authResult.response;
+    }
+
+    const userPayload = authResult.user!;
+    const userId = userPayload.userId;
+
+    // 檢查用戶是否存在
+    const user = await findUserById(userId);
+    if (!user) {
+      return errorResponse('用戶不存在', undefined, undefined, 404);
+    }
+
+    // 刪除用戶（會自動級聯刪除相關的 essays 和 scores）
+    await deleteUser(userId);
+
+    console.log(`✅ [Delete Account] 用戶 ${userId} 的帳號已刪除`);
+
+    // 返回成功響應（data 為 null，符合前端 ApiResponse<void> 類型）
+    return successResponse(null, '帳號已成功刪除');
+  } catch (error: any) {
+    console.error('Error in DELETE /api/user/profile:', error);
+    return errorResponse(error.message || '刪除帳號失敗', undefined, undefined, 500);
   }
 }

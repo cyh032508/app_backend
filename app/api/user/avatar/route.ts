@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { authenticateToken } from '@/lib/middleware/auth';
 import { errorResponse, successResponse } from '@/lib/utils/response-helper';
 import { validateImageUpload } from '@/lib/middleware/request-validator';
-import { uploadImageToBlob } from '@/lib/storage/vercel-blob';
+import { uploadImageToBlob, deleteImageFromBlob } from '@/lib/storage/vercel-blob';
 import { findUserById, updateUser } from '@/lib/db/user';
 
 /**
@@ -154,6 +154,103 @@ export async function POST(req: NextRequest) {
 
     return errorResponse(
       error.message || '上傳頭像失敗',
+      undefined,
+      undefined,
+      500
+    );
+  }
+}
+
+/**
+ * @swagger
+ * /api/user/avatar:
+ *   delete:
+ *     summary: 刪除用戶頭像
+ *     description: 刪除當前登入用戶的頭像，從 Vercel Blob Storage 刪除文件並更新用戶資料
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 刪除成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "操作成功"
+ *                 data:
+ *                   type: null
+ *       401:
+ *         description: 認證失敗
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: 用戶不存在或沒有頭像
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+export async function DELETE(req: NextRequest) {
+  try {
+    console.log('🗑️ [Delete Avatar API] 開始處理頭像刪除請求');
+
+    // 驗證用戶身份
+    const authResult = authenticateToken(req);
+    if (!authResult.isValid) {
+      return authResult.response;
+    }
+
+    const userPayload = authResult.user!;
+    const userId = userPayload.userId;
+
+    console.log(`👤 [Delete Avatar API] 用戶 ID: ${userId}`);
+
+    // 獲取當前用戶
+    const user = await findUserById(userId);
+    if (!user) {
+      return errorResponse('用戶不存在', undefined, undefined, 404);
+    }
+
+    // 檢查是否有頭像
+    if (!user.avatar_url) {
+      return errorResponse('用戶沒有頭像', undefined, undefined, 404);
+    }
+
+    const avatarUrl = user.avatar_url;
+
+    // 嘗試從 Vercel Blob Storage 刪除文件
+    try {
+      await deleteImageFromBlob(avatarUrl);
+      console.log(`✅ [Delete Avatar API] 已從 Blob Storage 刪除: ${avatarUrl}`);
+    } catch (blobError: any) {
+      // 如果刪除 Blob 失敗，記錄錯誤但不阻止更新資料庫
+      // 因為可能文件已經不存在或 URL 無效
+      console.warn(`⚠️ [Delete Avatar API] 從 Blob Storage 刪除失敗: ${blobError.message}`);
+      console.warn('   繼續更新資料庫，將 avatar_url 設為 null');
+    }
+
+    // 更新用戶資料，將 avatar_url 設為 null
+    await updateUser(userId, {
+      avatar_url: null,
+    });
+
+    console.log(`✅ [Delete Avatar API] 頭像刪除成功`);
+
+    // 返回成功響應（data 為 null，符合前端 ApiResponse<void> 類型）
+    return successResponse(null, '頭像已成功刪除');
+  } catch (error: any) {
+    console.error('❌ [Delete Avatar API] 處理過程出錯:', error);
+    return errorResponse(
+      error.message || '刪除頭像失敗',
       undefined,
       undefined,
       500
