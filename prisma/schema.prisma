@@ -22,6 +22,7 @@ model User {
   email           String   @unique
   hashed_password String
   username        String?
+  avatar_url      String?
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
 

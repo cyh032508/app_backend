@@ -86,6 +86,7 @@ export async function updateUser(
     email?: string;
     username?: string | null;
     hashed_password?: string;
+    avatar_url?: string | null;
   }
 ): Promise<User> {
   const updateData: any = { ...data };
@@ -96,6 +97,10 @@ export async function updateUser(
   
   if (data.username !== undefined) {
     updateData.username = data.username?.trim() || null;
+  }
+
+  if (data.avatar_url !== undefined) {
+    updateData.avatar_url = data.avatar_url || null;
   }
 
   return await prisma.user.update({
