@@ -106,3 +106,94 @@ export async function GET(
     // ... 實作查詢單篇文章的邏輯 ...
     return errorResponse('尚未實作單篇查詢', undefined, undefined, 501);
 }
+
+/**
+ * @swagger
+ * /api/history/{id}:
+ *   delete:
+ *     summary: 刪除歷史記錄
+ *     description: 永久刪除指定的歷史記錄（作文及其相關評分），此操作無法復原
+ *     tags: [History]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 歷史記錄 ID（essay ID）
+ *     responses:
+ *       200:
+ *         description: 刪除成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "操作成功"
+ *                 data:
+ *                   type: null
+ *       401:
+ *         description: 認證失敗
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: 記錄不存在或無權限
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    // 驗證用戶身份
+    const authResult = authenticateToken(req);
+    if (!authResult.isValid) {
+      return authResult.response;
+    }
+
+    const userId = authResult.user!.userId;
+    const essayId = params.id;
+
+    console.log(`🗑️ [Delete History] 用戶 ${userId} 嘗試刪除記錄 ${essayId}`);
+
+    // 確認這篇 essay 是否屬於該用戶
+    const essay = await prisma.essays.findFirst({
+      where: {
+        id: essayId,
+        user_id: userId,
+      },
+    });
+
+    if (!essay) {
+      return errorResponse('找不到該記錄或無權限刪除', undefined, undefined, 404);
+    }
+
+    // 永久刪除 essay（會自動級聯刪除相關的 scores）
+    // 根據 schema，Scores 有 onDelete: Cascade，所以刪除 essay 會自動刪除相關的 scores
+    await prisma.essays.delete({
+      where: {
+        id: essayId,
+      },
+    });
+
+    console.log(`✅ [Delete History] 記錄 ${essayId} 已成功刪除`);
+
+    // 返回成功響應（data 為 null，符合前端 ApiResponse<void> 類型）
+    return successResponse(null, '記錄已成功刪除');
+  } catch (error: any) {
+    console.error('Error in DELETE /api/history/[id]:', error);
+    return errorResponse(error.message || '刪除失敗', undefined, undefined, 500);
+  }
+}

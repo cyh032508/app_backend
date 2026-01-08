@@ -46,6 +46,7 @@ export async function GET() {
       'DELETE /api/user/avatar - 刪除用戶頭像（需登入）',
       'POST /api/history - 保存批改歷史記錄（需登入）',
       'GET /api/history - 查詢批改歷史記錄（需登入）',
+      'DELETE /api/history/[id] - 刪除歷史記錄（需登入）',
       'POST /api/upload_image - 上傳圖片到 Vercel Blob Storage（需登入）',
       'POST /api/gemini_ocr - OCR識別 (Gemini AI)',
       'POST /api/grade_essay - 作文評分',
@@ -53,4 +54,3 @@ export async function GET() {
     ],
   });
 }
-
