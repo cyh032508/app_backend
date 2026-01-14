@@ -79,3 +79,57 @@ export function getAuthenticatedUser(req: NextRequest): TokenPayload | null {
   return authResult.isValid ? authResult.user || null : null;
 }
 
+/**
+ * 可选认证中间件
+ * 如果提供了有效的 token，则返回用户信息
+ * 如果没有提供 token 或 token 无效，则返回访客用户信息
+ * 用于支持访客模式的 API
+ */
+export const GUEST_USER_ID = 'guest-user-00000000-0000-0000-0000-000000000000';
+
+export function optionalAuthenticateToken(req: NextRequest): {
+  isGuest: boolean;
+  userId: string;
+  user?: TokenPayload;
+} {
+  // 尝试从 Authorization header 获取 token
+  const authHeader = req.headers.get('authorization');
+
+  // 如果没有 Authorization header，返回访客用户
+  if (!authHeader) {
+    return {
+      isGuest: true,
+      userId: GUEST_USER_ID,
+    };
+  }
+
+  // 检查 Bearer token 格式
+  const parts = authHeader.split(' ');
+  if (parts.length !== 2 || parts[0] !== 'Bearer') {
+    // 格式错误，返回访客用户
+    return {
+      isGuest: true,
+      userId: GUEST_USER_ID,
+    };
+  }
+
+  const token = parts[1];
+
+  // 验证 token
+  const payload = verifyToken(token);
+  if (!payload) {
+    // token 无效或过期，返回访客用户
+    return {
+      isGuest: true,
+      userId: GUEST_USER_ID,
+    };
+  }
+
+  // token 有效，返回真实用户信息
+  return {
+    isGuest: false,
+    userId: payload.userId,
+    user: payload,
+  };
+}
+

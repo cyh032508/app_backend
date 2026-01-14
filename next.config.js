@@ -2,6 +2,11 @@
 const nextConfig = {
   reactStrictMode: true,
 
+  // 啟用 instrumentation hook
+  experimental: {
+    instrumentationHook: true,
+  },
+
   images: {
     domains: [],
   },

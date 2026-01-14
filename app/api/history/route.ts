@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { errorResponse, successResponse } from '@/lib/utils/response-helper';
 import { validateJsonFields } from '@/lib/middleware/request-validator';
-import { authenticateToken } from '@/lib/middleware/auth';
+import { authenticateToken, optionalAuthenticateToken } from '@/lib/middleware/auth';
 import { findEssaysByUserId, createEssay } from '@/lib/db/essay';
 import { findScoresByUserId, findScoreByEssayAndUser, createScore } from '@/lib/db/score';
 import { findRubricById, findRubricByName, createRubric } from '@/lib/db/rubric';
@@ -12,10 +12,17 @@ import { prisma } from '@/lib/db/prisma';
  * /api/history:
  *   post:
  *     summary: 保存批改历史记录
- *     description: 保存批改记录，包括作文信息、评分结果和评分标准。在批改 API 成功返回后调用。
+ *     description: |
+ *       保存批改记录，包括作文信息、评分结果和评分标准。在批改 API 成功返回后调用。
+ *
+ *       **支持访客模式**：
+ *       - 如果提供了有效的 JWT token，记录将关联到该用户
+ *       - 如果未提供 token 或 token 无效，记录将保存到访客用户账户
+ *       - 访客记录可以在用户注册/登录后通过其他方式转移
  *     tags: [History]
  *     security:
  *       - bearerAuth: []
+ *       - {} # 支持无认证访问（访客模式）
  *     requestBody:
  *       required: true
  *       content:
@@ -239,14 +246,10 @@ import { prisma } from '@/lib/db/prisma';
  */
 export async function POST(req: NextRequest) {
   try {
-    // 验证用户身份（需要登录）
-    const authResult = authenticateToken(req);
-    if (!authResult.isValid) {
-      return authResult.response;
-    }
-
-    const userPayload = authResult.user!;
-    const userId = userPayload.userId;
+    // 可选认证：支持访客模式和已登录用户
+    const authResult = optionalAuthenticateToken(req);
+    const userId = authResult.userId;
+    const isGuest = authResult.isGuest;
 
     // 验证请求数据
     const data = await req.json();
@@ -367,6 +370,7 @@ export async function POST(req: NextRequest) {
         id: essay.id, // 返回 essay ID 作为记录 ID
         essay_id: essay.id,
         score_id: score.id,
+        is_guest: isGuest, // 标识是否为访客记录
       },
       '保存成功'
     );
