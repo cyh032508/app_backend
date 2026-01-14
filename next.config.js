@@ -10,6 +10,20 @@ const nextConfig = {
   images: {
     domains: [],
   },
+  
+  // Webpack 配置：確保 Node.js 模組只在伺服器端使用
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // 在客戶端構建時，將 Node.js 模組設為空對象
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        crypto: false,
+        'node:crypto': false,
+      };
+    }
+    return config;
+  },
+
   // CORS 配置
   async headers() {
     return [

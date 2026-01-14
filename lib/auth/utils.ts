@@ -2,7 +2,7 @@
  * 认证工具函数
  */
 
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import { TokenPayload } from './types';
 
 /**
